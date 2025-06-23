@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>금쪽이 챗봇 제작 도우미</title>
+    <link rel="stylesheet" href="../style.css">
+    <script src="./main.js"></script>
+</head>
+<body>
+    <div id="app-container">
+        <div class="container">
+            <!-- 고정 헤더 -->
+            <div class="header">
+                <a href="../index.html" class="back-btn" title="메인으로 돌아가기">&lt; 메인화면</a>
+                <div class="header-content">
+                    <h1>🤖 금쪽이 챗봇 제작 도우미</h1>
+                    <p>교사·학생이 함께 사용하는 체계적인 챗봇 제작 가이드</p>
+                    <div class="nav-tabs">
+                        <div class="nav-tab active" onclick="showSection(0)">📚 프롬프트 가이드</div>
+                        <div class="nav-tab" onclick="showSection(1)">⚡ 템플릿 생성기</div>
+                        <div class="nav-tab" onclick="showSection(2)">❓ FAQ</div>
+                        <div class="nav-tab" onclick="showSection(3)">📝 메모 게시판</div>
+                    </div>
+                    <button class="hamburger-btn" id="hamburgerBtn" aria-label="메뉴 열기">
+                        <span></span><span></span><span></span>
+                    </button>
+                </div>
+                <div class="nav-overlay" id="navOverlay">
+                    <div class="nav-overlay-content">
+                        <div class="nav-list">
+                            <div class="nav-tab" onclick="handleOverlayTab(0)">📚 프롬프트 가이드</div>
+                            <div class="nav-tab" onclick="handleOverlayTab(1)">⚡ 템플릿 생성기</div>
+                            <div class="nav-tab" onclick="handleOverlayTab(2)">❓ FAQ</div>
+                            <div class="nav-tab" onclick="handleOverlayTab(3)">📝 메모 게시판</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    
+            <!-- 섹션 1: 프롬프트 가이드 -->
+            <div class="section active" id="section0">
+                <h2>📚 프롬프트 가이드</h2>
+                <p>일관성 있는 챗봇 동작을 위한 표준 프롬프트 구조와 작성 원칙입니다.</p>
+    
+                <!-- 기본 템플릿 구조 -->
+                <div class="template-box">
+                    <div class="template-title">📋 기본 템플릿 구조 (1,000자 이내)</div>
+                    <div class="code-block">[Role] (60자 이내)
+챗봇의 역할과 전문성 정의. 대상 학년과 주제 분야 명시
+
+[Context] (120자 이내)
+상황, 배경, 정보 범위, 기준 연도, 참고 자료 등
+
+[Rules] (각 130자 이내)
+1) 답변 범위: 구체적인 소단원 3-5개 명시
+2) 범위 이탈 시 대응: 복귀 유도 문구와 재제안 방법
+3) 설명 방식: 난도 조절, 예시 활용, 용어 풀이 등
+4) 추가 규칙 (선택사항)
+
+[Output] (110자 이내)
+답변 길이: 전체 120자 이내, 최대 2문단으로 구성
+마무리: 간단한 확인 질문으로 상호작용 유도
+
+[Style] (90자 이내)
+말투, 문체, 줄바꿈 규칙 등 스타일 가이드
+
+[예시] (100자 이내)
+Q: 질문 예시 / A: 답변 예시 (120자 이내)</div>
+                </div>
+    
+                <!-- 핵심 작성 포인트 -->
+                <div class="template-box">
+                    <div class="template-title">✏️ 핵심 작성 포인트</div>
+                    <ul style="margin-left: 20px; color: #4a5568;">
+                        <li><strong>Role</strong>: 챗봇의 역할과 전문성을 명확히 정의. 대상 학년과 주제 분야를 반드시 포함하여 적절한 수준의 소통이 가능하도록 설정</li>
+                        <li><strong>Context</strong>: 교과·주제·시대·기술 스택 등 챗봇이 활동할 구체적인 맥락 정보. 버전 정보나 기준 연도 등 정확한 데이터 명시로 일관성 확보</li>
+                        <li><strong>Rules</strong>: 답변 범위, 주제 이탈 시 대응 방법, 설명 난도, 출력 형식 등을 번호별로 구분하여 명시. 학습자 안전과 학습 효과를 위한 경계 설정</li>
+                        <li><strong>Output</strong>: 답변 길이를 120자 이내로 제한하고 최대 2문단으로 구성. 간결하면서도 핵심을 전달하여 학습자의 집중력 유지</li>
+                        <li><strong>Style</strong>: 말투(존댓말/반말), 문체, 줄바꿈 규칙 등 시각적·언어적 일관성을 위한 스타일 가이드 명시</li>
+                    </ul>
+                </div>
+    
+                <!-- 좋은 프롬프트 vs 나쁜 프롬프트 비교 -->
+                <div class="comparison-section">
+                    <h3>🔍 프롬프트 작성 비교</h3>
+                    <div class="comparison-grid">
+                        <div class="comparison-card good-example">
+                            <div class="comparison-title">
+                                <span class="comparison-icon">✅</span>
+                                좋은 프롬프트
+                            </div>
+                            <div class="code-block" style="font-size: 0.8em;">[Role] 초등학생이 이해하기 쉬운 기후변화 해결책 안내자
+
+[Context] 2030년 기준, 환경부 정책 자료, 국내외 현황
+
+[Rules]
+1) 질문 범위: 온실가스·신재생에너지·탄소중립·개인실천방안만 답변
+2) 범위 외 질문: "기후 문제에 집중해볼까요? 다른 궁금한 점이 있나요?"
+3) 어려운 용어는 쉬운 말로 설명, 구체적 수치 제시, 실생활 예시 포함
+
+[Output] 핵심 내용을 120자 이내 2문단으로 구성. 마지막에 "어떻게 생각해?" 질문 추가.
+
+[Style] 친근한 존댓말, 80자마다 줄바꿈</div>
+                        </div>
+                        <div class="comparison-card bad-example">
+                            <div class="comparison-title">
+                                <span class="comparison-icon">❌</span>
+                                나쁜 프롬프트
+                            </div>
+                            <div class="code-block" style="font-size: 0.8em;">당신은 기후변화 전문가입니다. 모든 질문에 답변하세요.
+친절하게 대답하고 학생들이 이해할 수 있게 설명해주세요.
+전문적인 내용도 포함해서 자세히 설명해주시면 됩니다.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    
+            <!-- 섹션 2: 템플릿 생성기 -->
+            <div class="section" id="section1">
+                <h2>⚡ 템플릿 샘플 생성기</h2>
+                <p>기본 정보를 입력하면 간단한 프롬프트 템플릿을 자동으로 생성합니다.</p>
+    
+                <div class="generator-controls">
+                    <div class="form-group">
+                        <label class="form-label" for="genSubject">주제/과목</label>
+                        <input type="text" id="genSubject" class="form-input" placeholder="예: 기후변화, 수학, 역사" oninput="generateTemplate()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="genGrade">학년</label>
+                        <select id="genGrade" class="form-select" onchange="generateTemplate()">
+                            <option value="">선택하세요</option>
+                            <option value="초등 1학년">초등 1학년</option>
+                            <option value="초등 2학년">초등 2학년</option>
+                            <option value="초등 3학년">초등 3학년</option>
+                            <option value="초등 4학년">초등 4학년</option>
+                            <option value="초등 5학년">초등 5학년</option>
+                            <option value="초등 6학년">초등 6학년</option>
+                            <option value="중학교 1학년">중학교 1학년</option>
+                            <option value="중학교 2학년">중학교 2학년</option>
+                            <option value="중학교 3학년">중학교 3학년</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="genScope">학습 범위</label>
+                        <input type="text" id="genScope" class="form-input" placeholder="예: 온실가스, 분수의 덧셈, 조선시대" oninput="generateTemplate()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="genTone">말투</label>
+                        <select id="genTone" class="form-select" onchange="generateTemplate()">
+                            <option value="">선택하세요</option>
+                            <option value="친근한 존댓말">친근한 존댓말</option>
+                            <option value="정중한 존댓말">정중한 존댓말</option>
+                            <option value="친근한 반말">친근한 반말</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="controls-bar">
+                    <button class="btn" onclick="generateTemplate()">템플릿 생성</button>
+                    <button class="btn btn-secondary" onclick="copyTemplate()">복사하기</button>
+                    <button class="btn btn-secondary" onclick="downloadTemplate()">다운로드</button>
+                    <button class="btn btn-secondary" onclick="clearGenerator()">초기화</button>
+                </div>
+    
+                <div class="editable-notice">
+                    💡 아래 템플릿을 직접 클릭하여 수정할 수 있습니다. 과부하 방지를 위해 답변 규칙은 "120자 이내, 최대 2문단" 설정되어 있습니다.
+                </div>
+    
+                <div class="generated-template" id="generatedTemplate" contenteditable="true" placeholder="여기에 생성된 템플릿이 표시됩니다.">여기에 생성된 템플릿이 표시됩니다.</div>
+            </div>
+    
+            <!-- 섹션 3: FAQ -->
+            <div class="section" id="section2">
+                <h2>❓ 자주 하는 실수 FAQ</h2>
+                <p>챗봇 제작 시 자주 발생하는 문제들과 해결 방법을 확인하세요.</p>
+    
+                <div class="faq-section">
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            프롬프트가 1,000자를 넘어가요. 어떻게 줄여야 하나요?
+                            <span class="faq-icon">▼</span>
+                        </div>
+                        <div class="faq-answer">
+                            <strong>해결 방법:</strong><br>
+                            1. Rules에서 중복되는 내용 제거<br>
+                            2. "그리고", "또한" 같은 접속사 삭제<br>
+                            3. 예시 부분을 Q:A: 형태로 단순화<br>
+                            4. Context에서 핵심 정보만 남기기<br>
+                            <strong>팁:</strong> 각 섹션별 글자수 가이드를 엄격히 지키면 자연스럽게 1,000자 이내가 됩니다.
+                        </div>
+                    </div>
+    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            챗봇이 주제를 벗어나서 답변해요.
+                            <span class="faq-icon">▼</span>
+                        </div>
+                        <div class="faq-answer">
+                            <strong>원인:</strong> Rules 1번에서 학습 범위가 너무 광범위하거나 모호함<br>
+                            <strong>해결 방법:</strong><br>
+                            1. 구체적인 소단원명 3-5개로 범위 한정<br>
+                            2. "~에 대해서만 답변합니다" 명시<br>
+                            3. 벗어날 때 사용할 복귀 문구를 Rules 2에 정확히 기입<br>
+                            <strong>예시:</strong> "질문은 삼각형의 넓이·둘레·합동·닮음만 답변합니다"
+                        </div>
+                    </div>
+    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            학습 목표를 어떻게 작성해야 하나요?
+                            <span class="faq-icon">▼</span>
+                        </div>
+                        <div class="faq-answer">
+                            <strong>작성 원칙:</strong><br>
+                            1. "~할 수 있다" 체로 통일<br>
+                            2. 블룸 분류학 순서: 이해 → 적용 → 실제 문제 해결<br>
+                            3. 관찰 가능하고 측정 가능한 동사 사용<br>
+                            <strong>좋은 예:</strong> "삼각형의 넓이 공식을 설명할 수 있다" / "실제 문제에 공식을 적용할 수 있다"<br>
+                            <strong>나쁜 예:</strong> "삼각형을 안다" / "수학을 좋아한다"
+                        </div>
+                    </div>
+    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            챗봇 답변이 너무 길어서 학생들이 지루해해요.
+                            <span class="faq-icon">▼</span>
+                        </div>
+                        <div class="faq-answer">
+                            <strong>해결 방법:</strong><br>
+                            1. Output에서 답변 길이를 80자 이내로 제한<br>
+                            2. 최대 1문단으로 구성<br>
+                            3. "핵심 내용만 간결하게" 추가<br>
+                            <strong>효과:</strong> 학습자의 집중력 유지와 이해도 향상, 챗봇 과부하 방지
+                        </div>
+                    </div>
+    
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFaq(this)">
+                            템플릿을 어떻게 내 상황에 맞게 수정하나요?
+                            <span class="faq-icon">▼</span>
+                        </div>
+                        <div class="faq-answer">
+                            <strong>수정 방법:</strong><br>
+                            1. 생성된 템플릿을 클릭하여 직접 편집 가능<br>
+                            2. Context에 구체적인 교육과정 정보 추가<br>
+                            3. Rules에서 학습 범위를 더 세분화<br>
+                            4. Style에서 학급 분위기에 맞는 말투 조정<br>
+                            <strong>팁:</strong> 복사 후 텍스트 에디터에서 추가 수정하여 완성도를 높이세요.
+                        </div>
+                    </div>
+                </div>
+            </div>
+    
+            <!-- 섹션 4: 메모 게시판 -->
+            <div class="section" id="section3">
+                <h2>📝 메모 게시판</h2>
+                <p>프롬프트 아이디어, 성공 사례, 개선점 등을 자유롭게 기록하고 공유하세요.</p>
+    
+                <div class="memo-board">
+                    <div class="memo-header">
+                        <div class="memo-title">아이디어 메모장</div>
+                        <button class="btn btn-small" onclick="toggleMemoForm()">+ 새 메모 추가</button>
+                    </div>
+    
+                    <!-- 메모 추가 폼 -->
+                    <div class="memo-form" id="memoForm">
+                        <div class="form-group">
+                            <label class="form-label" for="memoTitle">제목</label>
+                            <input type="text" id="memoTitle" class="form-input" placeholder="메모 제목을 입력하세요">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="memoContent">내용</label>
+                            <textarea id="memoContent" class="form-textarea" placeholder="아이디어나 개선점을 자유롭게 적어보세요"></textarea>
+                        </div>
+                        <div class="controls-bar">
+                            <button class="btn" onclick="addMemo()">메모 저장</button>
+                            <button class="btn btn-secondary" onclick="cancelMemo()">취소</button>
+                        </div>
+                    </div>
+    
+                    <!-- 메모 목록 -->
+                    <div class="memo-list" id="memoList">
+                        <div class="memo-item">
+                            <div class="memo-item-title">[환경] 기후변화 챗봇 아이디어</div>
+                            <div class="memo-item-content">학생들이 실제 탄소발자국을 계산해볼 수 있는 챗봇. 일상 행동을 입력하면 CO2 배출량을 알려주고 개선 방안 제시</div>
+                        </div>
+                        <div class="memo-item">
+                            <div class="memo-item-title">[수학] 개념 시각화 방법</div>
+                            <div class="memo-item-content">복잡한 도형의 성질을 말로 설명할 때 단계별 안내와 실생활 예시를 활용하여 이해도 향상</div>
+                        </div>
+                        <div class="memo-item">
+                            <div class="memo-item-title">[과학] 실험 안전 가이드</div>
+                            <div class="memo-item-content">과학 실험 전 안전 수칙을 퀴즈 형태로 확인하고, 실험 순서를 단계별로 안내하는 챗봇</div>
+                        </div>
+                        <div class="memo-item">
+                            <div class="memo-item-title">[국어] 독서 토론 친구</div>
+                            <div class="memo-item-content">책을 읽고 나서 등장인물 분석, 주제 파악, 비판적 사고를 유도하는 질문들을 제공</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
