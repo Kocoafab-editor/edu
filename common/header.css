@@ -1,0 +1,149 @@
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgb(248, 249, 255);
+    border-radius: 0px 0px 15px 15px;
+    padding: 0;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    width: 100%;
+    box-sizing: border-box;
+    z-index: 3000;
+}
+.header-content {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    padding: 30px 36px 30px 36px;
+    position: relative;
+}
+
+/* 반응형: 모바일에서 nav-tabs 숨기고 햄버거 노출 */
+@media (max-width: 900px) {
+    .header-content .nav-tabs {
+        display: none !important;
+    }
+    .hamburger-btn {
+        display: flex;
+    }
+    .container {
+        padding: 200px 10px 10px 10px;
+    }
+}
+@media (min-width: 901px) {
+    .nav-overlay {
+        display: none !important;
+    }
+    .hamburger-btn {
+        display: none !important;
+    }
+}
+
+.header-content h1 {
+    font-size: 2em;
+    font-weight: 800;
+    color: #764ba2;
+    margin-bottom: 8px;
+    margin-top: 8px;
+    text-align: center;
+}
+.header p {
+    color: #4a5568;
+    font-size: 1.1em;
+    margin-bottom: 18px;
+    text-align: center;
+}
+.header .nav-tabs {
+    margin-bottom: 0;
+    margin-top: 18px;
+    /* width: 100%; */
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    background: none;
+    box-shadow: none;
+}
+
+.back-btn {
+    position: absolute;
+    top: 10px;
+    left: 15px;
+    z-index: 10;
+    font-size: 1.08em;
+    color: #764ba2;
+    font-weight: 600;
+    background: none;
+    border: none;
+    outline: none;
+    padding: 6px 18px 6px 18px;
+    min-width: 90px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.18s, background 0.18s;
+    box-shadow: none;
+    border-radius: 50px;
+    text-decoration: none;
+    line-height: 1.2;
+}
+
+.back-btn:hover {
+    transform: scale(1.08);
+    background: #eeeeee;
+    text-decoration: none;
+}
+
+@media (max-width: 768px) {
+    .back-btn {
+        top: 10px;
+        left: 20px;
+        min-width: 90px;
+        min-height: 36px;
+        font-size: 1em;
+        padding: 4px 10px 4px 10px;
+    }
+
+    .container {
+        padding: 200px 10px 10px 10px;
+    }
+    .header h1 {
+        font-size: 2em;
+    }
+    .comparison-grid {
+        grid-template-columns: 1fr;
+    }
+    .nav-tabs {
+        flex-direction: column;
+    }
+    .nav-tab {
+        min-width: auto;
+    }
+    .generator-controls {
+        grid-template-columns: 1fr;
+    }
+    .memo-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-content {
+      padding: 25px 20px 12px 20px;
+    }
+    .header-content p {
+      margin-bottom: 2px;
+    }
+    .back-btn {
+      top: 8px;
+      font-size: 1em;
+      padding: 4px 10px;
+      min-width: 60px;
+      min-height: 28px;
+    }
+  }

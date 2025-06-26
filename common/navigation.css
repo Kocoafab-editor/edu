@@ -1,0 +1,203 @@
+
+
+/* 햄버거 버튼 */
+.hamburger-btn {
+    display: none;
+    position: absolute;
+    top: 5px;
+    right: 24px;
+    width: 48px;
+    height: 48px;
+    background: none;
+    border: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 10002; /* 오버레이(close-btn) 보다 위 */
+    padding: 8px;
+}
+
+
+.hamburger-btn:focus {
+    outline: 2px solid #764ba2;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+}
+.hamburger-btn span {
+    display: block;
+    width: 28px;
+    height: 3px;
+    margin: 3px 0;
+    background: #764ba2;
+    border-radius: 2px;
+    transition: all 0.3s;
+}
+
+/* 햄버거 -> X 아이콘 전환 */
+.hamburger-btn.open span:nth-child(1) {
+  transform: rotate(45deg) translate(6px, 6px);
+}
+.hamburger-btn.open span:nth-child(2) {
+  opacity: 0;
+}
+.hamburger-btn.open span:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* 오버레이 네비게이션 */
+.nav-overlay {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #fff;
+    transition: opacity 0.3s;
+    opacity: 0;
+    pointer-events: none;
+}
+.nav-overlay.open {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+}
+.nav-overlay-content {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 40px 0 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+}
+.close-btn {
+    position: absolute;
+    top: 18px;
+    right: 24px;
+    background: none;
+    border: none;
+    font-size: 2.2em;
+    color: #fff;
+    cursor: pointer;
+    z-index: 10001;
+}
+/* 햄버거 버튼이 항상 오버레이 위에 있도록 z-index 조정 */
+.nav-overlay.open ~ .hamburger-btn,
+.hamburger-btn.open {
+    z-index: 10002;
+}
+
+.nav-list {
+    margin-top: 48px;
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.nav-list .nav-tab {
+    background: #fff;
+    color: #764ba2;
+    border-radius: 12px;
+    font-size: 1.2em;
+    font-weight: 600;
+    padding: 20px 0;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.09);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.nav-list .nav-tab:hover {
+    background: #ece7fa;
+    color: #5a3578;
+}
+
+.nav-tabs {
+    margin-bottom: 0;
+    margin-top: 18px;
+    /* width: 100%; */
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    background: none;
+    box-shadow: none;
+}
+
+.nav-tabs {
+    display: flex;
+    background: white;
+    border-radius: 15px;
+    padding: 5px;
+    margin-bottom: 30px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    overflow-x: auto;
+}
+.nav-tab {
+    flex: 1;
+    padding: 15px 20px;
+    text-align: center;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    white-space: nowrap;
+    min-width: 120px;
+}
+.nav-tab.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+.nav-tab:hover {
+    background: #f7fafc;
+}
+.nav-tab.active:hover {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* 반응형: 모바일에서 nav-tabs 숨기고 햄버거 노출 */
+@media (max-width: 900px) {
+    .header-content .nav-tabs {
+        display: none !important;
+    }
+    .hamburger-btn {
+        display: flex;
+    }
+    .container {
+        padding: 200px 10px 10px 10px;
+    }
+}
+@media (min-width: 901px) {
+    .nav-overlay {
+        display: none !important;
+    }
+    .hamburger-btn {
+        display: none !important;
+    }
+}
+
+
+@media (max-width: 768px) {
+    .container {
+        padding: 200px 10px 10px 10px;
+    }
+    .nav-tabs {
+        flex-direction: column;
+    }
+    .nav-tab {
+        min-width: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .hamburger-btn {
+      width: 28px;
+      height: 28px;
+      padding: 1.5px;
+      top: 2px;
+      right: 8px;
+    }
+    .hamburger-btn span {
+      height: 3px !important;
+      margin: 4px 0 !important;
+    }
+}
