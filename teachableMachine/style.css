@@ -1,0 +1,728 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+.serial-connection .container {
+    padding-top: 360px;
+    transition: padding-top 0.3s ease;
+}
+
+.header-settings-bar.closed + .container {
+    padding-top: 180px;
+}
+
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgb(248, 249, 255);
+    border-radius: 0px 0px 15px 15px;
+    padding: 0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    width: 100%;
+    box-sizing: border-box;
+    z-index: 3000;
+}
+
+.header-content {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    padding: 30px 36px 15px 36px;
+    position: relative;
+}
+
+.header h1 {
+    font-size: 1.8em;
+    font-weight: 800;
+    color: #764ba2;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.header p {
+    color: #4a5568;
+    font-size: 1.1em;
+    text-align: center;
+}
+
+/* 헤더 컨트롤 영역 */
+.header-controls {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.header-settings-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 0 16px 0;
+    background: none;
+    border-radius: 16px;
+    position: relative;
+    gap: 16px;
+    max-width: 100%;
+}
+
+.header-settings-left, .header-settings-center, .header-settings-right {
+    width: 32%;
+    min-width: 220px;
+    height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex-shrink: 0;
+}
+
+@media screen and (max-width: 1200px) {
+    .header-settings-left, .header-settings-center, .header-settings-right {
+        width: 31%;
+        min-width: 200px;
+    }
+}
+
+@media screen and (max-width: 1000px) {
+    .header-settings-left, .header-settings-center, .header-settings-right {
+        width: 29%;
+        min-width: 240px;
+    }
+
+    .header-settings-bar {
+        gap: 8px;
+    }
+
+    .header-settings-bar .btn {
+        font-size: 0.8em;
+        padding: 8px 10px;
+    }
+    .header-settings-bar .toggle-switch {
+        width: 60px;
+        height: 32px;
+    }
+    .header-settings-bar .toggle-slider {
+        width: 24px;
+        height: 24px;
+        top: 4px;
+        left: 4px;
+    }
+    .header-settings-bar .toggle-label {
+        font-size: 0.8em;
+    }
+    .header-settings-bar .form-input {
+        font-size: 0.8em;
+        padding: 8px 12px;
+        height: 32px;
+    }
+    .header .serial-notice {
+        font-size: 0.8em;
+    }
+}
+
+@media screen and (max-width: 1200px) {
+    .header-settings-bar .form-input {
+        height: 28px;
+        padding: 6px 10px;
+    }
+}
+
+@media screen and (max-width: 1000px) {
+    .header-settings-bar .form-input {
+        height: 24px;
+        padding: 5px 8px;
+    }
+
+    .status-panel .status-label {
+        font-size: 0.8em;
+    }
+
+    .status-panel .status-value {
+        padding: 2px 8px;
+        border-radius: 7.5px;
+        font-size: 0.7em;
+        font-weight: 400;
+    }
+}
+
+@media screen and (max-width: 800px) {
+    .header-settings-left, .header-settings-center, .header-settings-right {
+        width: 28%;
+        min-width: 220px;
+    }
+    .header-settings-bar .btn {
+        font-size: 0.7em;
+        padding: 8px 10px;
+    }
+    .header-settings-bar .toggle-switch {
+        width: 50px;
+        height: 25px;
+    }
+    .header-settings-bar .toggle-slider {
+        width: 19px;
+        height: 19px;
+        top: 3px;
+        left: 3px;
+    }
+    .header-settings-bar .toggle-label {
+        font-size: 0.7em;
+    }
+}
+
+.header-settings-col {
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+}
+
+.settings-title {
+    font-size: 0.9em;
+    font-weight: 600;
+    text-align: center;
+    color: #4a5568;
+    margin-bottom: 12px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.header-settings-center form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    align-items: stretch;
+}
+
+.header-settings-center form .form-input {
+    flex: 1;
+}
+
+/* 토글 컨테이너 스타일링 */
+.toggle-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+.toggle-label {
+    font-size: 0.9em;
+    color: #4a5568;
+}
+
+.toggle-switch {
+    width: 60px;
+    height: 32px;
+    background: #e2e8f0;
+    border-radius: 16px;
+    position: relative;
+    cursor: pointer;
+}
+
+.toggle-slider {
+    width: 24px;
+    height: 24px;
+    background: #fff;
+    border-radius: 50%;
+    position: absolute;
+    left: 4px;
+    top: 4px;
+    transition: left 0.3s;
+}
+
+.toggle-switch.closed .toggle-slider {
+    left: 32px;
+}
+
+/* 버튼 스타일링 */
+.btn {
+    font-size: 0.9em;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-secondary {
+    background: #e2e8f0;
+    color: #4a5568;
+}
+
+.btn-secondary:hover {
+    background: #c4d0e0;
+}
+
+.btn {
+    background: #764ba2;
+    color: white;
+}
+
+.btn:hover {
+    background: #653f91;
+}
+
+.serial-notice {
+    color: #555;
+    padding: 0;
+}
+
+.header .serial-notice {
+    font-size: 0.92em;
+    margin: 0;
+    margin-top: 8px;
+}
+
+.header-toggle-btn {
+    position: absolute;
+    top: 5px; right: 8px;
+    z-index: 10;
+    background: #eee;
+    border-radius: 50%;
+    border: none;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.header-toggle-btn::before {
+    content: '';
+    display: block;
+    width: 0;
+    height: 0;
+    border-left: 9px solid transparent;
+    border-right: 9px solid transparent;
+    border-bottom: 12px solid #764ba2;
+    transition: transform 0.3s;
+}
+.header-toggle-btn.closed::before {
+    transform: rotate(180deg);
+}
+
+/* 접혔을 때 숨김 */
+.header-settings-bar.closed {
+    max-height: 0 !important;
+    overflow: hidden;
+    padding: 0 !important;
+    border: none !important;
+}
+
+.header-title-desc {
+    text-align: center;
+    margin-top: 0;
+}
+
+.device-toggle-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 60px;
+    height: 30px;
+    background: #fb8720;
+    transition: background 0.3s;
+    border-radius: 15px;
+    cursor: pointer;
+}
+
+.toggle-switch.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 24px;
+    height: 24px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.toggle-switch.active .toggle-slider {
+    transform: translateX(30px);
+}
+
+.toggle-label {
+    font-weight: 500;
+    color: #4a5568;
+    font-size: 0.9em;
+}
+
+.editor-button {
+    padding: 8px 20px;
+    font-size: 0.9em;
+    border-radius: 20px;
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    padding: 200px 20px 20px 20px;
+}
+
+.main-section {
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+/* 모바일 경고 메시지 */
+.mobile-warning {
+    display: none;
+    background: linear-gradient(135deg, #fed7d7 0%, #fef5e7 100%);
+    border: 2px solid #f56565;
+    border-radius: 15px;
+    padding: 25px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.warning-content h3 {
+    color: #742a2a;
+    margin-bottom: 10px;
+    font-size: 1.3em;
+}
+
+.warning-content p {
+    color: #744210;
+    font-size: 1.1em;
+    line-height: 1.5;
+}
+
+/* 데스크톱 전용 콘텐츠 */
+.desktop-only {
+    display: block;
+}
+
+.model-config-row {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    align-items: stretch; /* stretch로 맞추기 */
+    margin-bottom: 15px;
+}
+
+/* 모델 설정 섹션 */
+.model-config-section {
+    background: #f7fafc;
+    width: 100%;
+    height: 100%;
+    min-height: 220px; /* 필요시 조정 */
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 30px;
+    border-left: 4px solid #667eea;
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* 버튼이 항상 하단에 오도록 */
+}
+
+.section-title {
+    font-weight: bold;
+    color: #4a5568;
+    margin-bottom: 20px;
+    font-size: 1.3em;
+}
+
+.section-subtitle {
+    font-weight: bold;
+    color: #4a5568;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+    margin-top: 25px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    display: block;
+    font-weight: bold;
+    color: #4a5568;
+    margin-bottom: 8px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1em;
+    transition: border-color 0.3s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.connection-notice {
+    color: #4a5568;
+    font-size: 0.95em;
+    margin-bottom: 15px;
+    background: #e6fffa;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 3px solid #38b2ac;
+}
+
+.btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin: 5px 5px 5px 0;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-secondary {
+    background: #e2e8f0;
+    color: #4a5568;
+}
+
+.btn-secondary:hover {
+    background: #cbd5e0;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.content-section {
+    margin-top: 20px;
+}
+
+.video-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    align-items: start;
+    margin-bottom: 30px;
+}
+
+.video-container {
+    text-align: center;
+}
+
+.video-title {
+    font-weight: bold;
+    color: #4a5568;
+    font-size: 1.1em;
+}
+
+.canvas-wrapper {
+    border: 3px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    display: inline-block;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.status-panel {
+    background: #f7fafc;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 30px;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.status-item:last-child {
+    border-bottom: none;
+}
+
+.status-label {
+    font-weight: 500;
+    color: #4a5568;
+}
+
+.status-value {
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.status-connected {
+    background: #c6f6d5;
+    color: #22543d;
+}
+
+.status-disconnected {
+    background: #fed7d7;
+    color: #742a2a;
+}
+
+.status-ready {
+    background: #bee3f8;
+    color: #2a4365;
+}
+
+.status-waiting {
+    background: #fef5e7;
+    color: #744210;
+}
+
+.instructions {
+    background: #fef5e7;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.instructions h3 {
+    color: #744210;
+    margin-bottom: 15px;
+}
+
+.instructions ol {
+    color: #744210;
+    padding-left: 20px;
+}
+
+.instructions li {
+    margin-bottom: 8px;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+    .container {
+        padding: 220px 15px 15px 15px;
+    }
+
+    .header h1 {
+        font-size: 1.4em;
+    }
+
+    .header p {
+        font-size: 0.95em;
+    }
+
+    .header-content {
+        padding: 25px 20px;
+    }
+
+    .device-toggle-header {
+        gap: 10px;
+    }
+
+    .toggle-label {
+        font-size: 0.8em;
+    }
+
+    .editor-button {
+        font-size: 0.8em;
+        padding: 6px 15px;
+    }
+
+    /* 모바일에서 경고 메시지 표시 */
+    .mobile-warning {
+        display: block;
+    }
+
+    /* 모바일에서 메인 콘텐츠 숨김 */
+    .desktop-only {
+        display: none;
+    }
+
+    .video-section {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-content {
+        padding: 20px 15px;
+    }
+
+    .main-section {
+        padding: 20px;
+    }
+
+    .btn {
+        font-size: 0.9em;
+        padding: 10px 20px;
+    }
+
+    .toggle-container {
+        gap: 10px;
+    }
+
+    .toggle-switch {
+        width: 50px;
+        height: 25px;
+    }
+
+    .toggle-slider {
+        width: 19px;
+        height: 19px;
+        top: 3px;
+        left: 3px;
+    }
+
+    .toggle-switch.active .toggle-slider {
+        transform: translateX(25px);
+    }
+}

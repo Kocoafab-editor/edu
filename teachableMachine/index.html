@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>티처블머신 이미지 인식 - 마이크로비트/ESP32 연동</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="../static/favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="../static/favicon/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../static/favicon/favicon-16x16.png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+    <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/makeabilitylab/p5js/_libraries/serial.js"></script>
+    <link rel="stylesheet" href="../common/header.css">
+    <link rel="stylesheet" href="../common/template.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="serial-connection">
+    <div class="header">
+        <a href="../index.html" class="back-btn" title="메인으로 돌아가기">&lt; 메인화면</a>
+        <div class="header-content">
+            <!-- 접기/펼치기 버튼 -->
+            <button id="headerToggleBtn" class="btn-small header-toggle-btn" title="설정 접기/펼치기"></button>
+            <div class="desktop-only">
+                <!-- 기존 헤더 타이틀/설명 -->
+                <div class="header-title-desc">
+                  <h1 id="headerTitle">마이크로비트와 티처블머신 연동하기</h1>
+                  <p>웹캠을 통한 실시간 이미지 인식으로 마이크로비트/esp32 제어</p>
+                </div>
+                <div class="header-settings-bar">
+                    <!-- 1. MCU 토글 + 에디터 버튼 (왼쪽) -->
+                  <div class="header-settings-col header-settings-left">
+                    <div class="settings-title">디바이스 선택</div>
+                    <div class="toggle-container">
+                      <span class="toggle-label">마이크로비트</span>
+                      <div class="toggle-switch" id="deviceToggle">
+                        <div class="toggle-slider"></div>
+                      </div>
+                      <span class="toggle-label">ESP32</span>
+                    </div>
+                    <button id="editorButton" class="btn" onclick="window.open('https://makecode.microbit.org/#editor', '_blank')">
+                      마이크로비트 에디터 열기
+                    </button>
+                  </div>
+                  <!-- 2. 모델 URL 입력 (가운데) -->
+                  <div class="header-settings-col header-settings-center">
+                    <div class="settings-title">티처블머신 URL</div>
+                    <form id="modelUrlForm" onsubmit="event.preventDefault(); document.getElementById('loadModelBtn').click();">
+                      <input type="text" id="modelUrlInput" class="form-input"
+                             placeholder="https://teachablemachine.withgoogle.com/models/xxxxxx/">
+                      <button id="loadModelBtn" class="btn">모델 로드</button>
+                    </form>
+                  </div>
+                  <!-- 3. 시리얼 연결 (오른쪽) -->
+                  <div class="header-settings-col header-settings-right">
+                    <div class="settings-title">시리얼 통신 연결</div>
+                    <p class="serial-notice">연결이 끊기거나 모델이 바뀌면 다시 연결하세요.</p>
+                    <button id="serialButton" class="btn">시리얼통신 연결</button>
+                  </div>
+                </div>
+            </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+        <div class="main-section">
+            <!-- 모바일 경고 메시지 -->
+            <div class="mobile-warning">
+                <div class="warning-content">
+                    <h3>📱 모바일 환경 안내</h3>
+                    <p>시리얼 통신을 통한 MCU 연결은 데스크톱 환경에서만 지원됩니다.<br>
+                    컴퓨터로 접속해 주세요.</p>
+                </div>
+            </div>
+
+            <!-- 티처블머신 모델 설정 -->
+            
+
+            <div class="content-section desktop-only">
+                <div class="video-section">
+                    <div class="video-container">
+                      <div class="canvas-wrapper" id="canvasContainer">
+                        <!-- p5.js canvas will be inserted here -->
+                      </div>
+                      <div class="video-title">실시간 카메라</div>
+                    </div>
+
+                    <div class="status-panel">
+                        <div class="video-title">상태 정보</div>
+                        <div class="status-item">
+                            <span class="status-label">모델 상태:</span>
+                            <span id="modelStatus" class="status-value status-waiting">대기중</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">시리얼 연결:</span>
+                            <span id="serialStatus" class="status-value status-disconnected">연결 안됨</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">현재 디바이스:</span>
+                            <span id="currentDevice" class="status-value status-ready">마이크로비트</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">인식 결과:</span>
+                            <span id="recognitionResult" class="status-value status-waiting">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="instructions">
+                    <h3>📋 사용 방법</h3>
+                    <ol>
+                        <li>헤더에서 사용할 디바이스(마이크로비트 또는 ESP32)를 선택하세요</li>
+                        <li>티처블머신에서 학습한 모델의 URL을 입력하고 "모델 로드"를 클릭하세요</li>
+                        <li>디바이스 에디터에서 시리얼 통신 코드를 작성하고 업로드하세요</li>
+                        <li>"시리얼통신 연결" 버튼을 클릭하여 디바이스와 연결하세요</li>
+                        <li>웹캠이 인식한 결과가 자동으로 디바이스로 전송됩니다</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수
+        let isESP32Mode = false;
+
+        const headerSettingsBar = document.querySelector('.header-settings-bar');
+        const headerToggleBtn = document.getElementById('headerToggleBtn');
+        if(headerToggleBtn && headerSettingsBar) {
+            headerToggleBtn.addEventListener('click', () => {
+                const isClosed = headerSettingsBar.classList.toggle('closed');
+                headerToggleBtn.classList.toggle('closed');
+                
+                // 컨테이너의 padding-top 값을 동적으로 변경
+                const container = document.querySelector('.serial-connection .container');
+                if (container) {
+                    container.style.paddingTop = isClosed ? '180px' : '360px';
+                }
+            });
+        }
+        
+        // DOM 요소들
+        const deviceToggle = document.getElementById('deviceToggle');
+        const editorButton = document.getElementById('editorButton');
+        const currentDeviceSpan = document.getElementById('currentDevice');
+        const modelUrlInput = document.getElementById('modelUrlInput');
+        const loadModelBtn = document.getElementById('loadModelBtn');
+        const serialButton = document.getElementById('serialButton');
+        const headerTitle = document.getElementById('headerTitle');
+        
+        // 상태 업데이트 함수들
+        window.updateModelStatus = function(status, className = 'status-waiting') {
+            const element = document.getElementById('modelStatus');
+            if (element) {
+                element.textContent = status;
+                element.className = 'status-value ' + className;
+            }
+        };
+        
+        window.updateSerialStatus = function(status, className = 'status-disconnected') {
+            const element = document.getElementById('serialStatus');
+            if (element) {
+                element.textContent = status;
+                element.className = 'status-value ' + className;
+            }
+        };
+        
+        window.updateRecognitionResult = function(result) {
+            const element = document.getElementById('recognitionResult');
+            if (element) {
+                element.textContent = result;
+                element.className = 'status-value status-ready';
+            }
+        };
+
+        // 헤더 제목 업데이트 함수
+        function updateHeaderTitle(isESP32) {
+            const deviceName = isESP32 ? 'ESP32' : '마이크로비트';
+            headerTitle.textContent = `${deviceName}와 티처블머신 연동하기`;
+        }
+
+        // 디바이스 토글 이벤트
+        deviceToggle.addEventListener('click', function() {
+            isESP32Mode = !isESP32Mode;
+            deviceToggle.classList.toggle('active', isESP32Mode);
+            
+            if (isESP32Mode) {
+                editorButton.textContent = 'Thonny IDE 다운로드';
+                editorButton.onclick = () => window.open('https://thonny.org/', '_blank');
+                if (currentDeviceSpan) currentDeviceSpan.textContent = 'ESP32';
+            } else {
+                editorButton.textContent = '마이크로비트 에디터 열기';
+                editorButton.onclick = () => window.open('https://makecode.microbit.org/#editor', '_blank');
+                if (currentDeviceSpan) currentDeviceSpan.textContent = '마이크로비트';
+            }
+            
+            // 헤더 제목 업데이트
+            updateHeaderTitle(isESP32Mode);
+            
+            // 전역 변수로 현재 모드 설정
+            window.currentDeviceMode = isESP32Mode ? 'esp32' : 'microbit';
+        });
+
+        // 모델 로드 버튼 이벤트
+        if (loadModelBtn) {
+            loadModelBtn.addEventListener('click', function() {
+                const url = modelUrlInput.value.trim();
+                if (url && window.setModelUrl) {
+                    window.setModelUrl(url);
+                } else {
+                    alert('올바른 모델 URL을 입력하세요.');
+                }
+            });
+        }
+
+        // 시리얼 연결 버튼 이벤트
+        if (serialButton) {
+            serialButton.addEventListener('click', function() {
+                if (window.newConnect) {
+                    window.newConnect();
+                }
+            });
+        }
+
+        // 초기 상태 설정
+        window.currentDeviceMode = 'microbit';
+        updateHeaderTitle(false);
+    </script>
+    
+    <script src="sketch.js"></script>
+</body>
+</html>
