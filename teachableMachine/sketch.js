@@ -15,7 +15,7 @@ let canvasCreated = false;
 
 // Rate limiting variables
 let lastSentTime = 0;
-const MIN_TIME_BETWEEN_SENDS = 500; // Minimum time between sends in milliseconds (0.5 seconds)
+const MIN_TIME_BETWEEN_SENDS = 1000; // Minimum time between sends in milliseconds (0.5 seconds)
 let lastLabelToSend = null;
 let sendScheduled = false;
 
@@ -74,7 +74,7 @@ function setup() {
   
   // 비디오 설정 (실제 카메라 해상도로 초기화)
   video = createCapture(VIDEO, videoReady_callback);
-  // 카메라가 준비되면 실제 해상도로 설정됨 (videoReady_callback에서 처리)
+  video.hide(); // Hide the raw video element
   
   // 초기 상태 메시지
   window.updateModelStatus("모델 URL을 입력하세요", "status-waiting");
@@ -82,18 +82,15 @@ function setup() {
 }
 
 function videoReady_callback() {
-  // 카메라의 실제 해상도 가져오기
-  let aspectRatio = video.width / video.height;
+  // 카메라의 실제 해상도 가져오기 (원본 해상도 유지)
+  let videoWidth = video.width;
+  let videoHeight = video.height;
   
-  // 비디오 크기를 디스플레이 크기에 맞게 조정 (종횡비 유지)
-  let displayAspect = DISPLAY_WIDTH / DISPLAY_HEIGHT;
-  if (aspectRatio > displayAspect) {
-    // 비디오가 더 넓음 (가로로 긴 경우)
-    video.size(DISPLAY_WIDTH, DISPLAY_WIDTH / aspectRatio);
-  } else {
-    // 비디오가 더 높음 (세로로 긴 경우)
-    video.size(DISPLAY_HEIGHT * aspectRatio, DISPLAY_HEIGHT);
-  }
+  // 원본 해상도 로깅 (디버깅용)
+  console.log(`카메라 원본 해상도: ${videoWidth}x${videoHeight}`);
+  
+  // 비디오 크기를 원본 해상도로 설정 (크롭을 위해)
+  video.size(videoWidth, videoHeight);
   
   videoReady = true;
   // 모델이 이미 로드되어 있다면 분류 시작
@@ -105,21 +102,9 @@ function videoReady_callback() {
 function draw() {
   background(50, 50, 60);
   
-  if (classifier && flippedVideo && videoReady) {
-    // 플립된 비디오를 캔버스 중앙에 그림
-    let x = (width - DISPLAY_WIDTH) / 2;
-    let y = 0;
-    image(flippedVideo, x, y, DISPLAY_WIDTH, DISPLAY_HEIGHT);
-  } else if (video && videoReady) {
-    // 비디오가 준비되었지만 모델이 없는 경우
-    push();
-    // 비디오를 캔버스 중앙에 그림 (좌우 반전)
-    translate(width, 0);
-    scale(-1, 1);
-    let x = (width - DISPLAY_WIDTH) / 2;
-    let y = 0;
-    image(video, x, y, DISPLAY_WIDTH, DISPLAY_HEIGHT);
-    pop();
+  if (video && videoReady) {
+    // 항상 원본 비디오를 사용하되, drawVideo에서 좌우 반전 처리
+    drawVideo(video);
   }
   
   // 라벨 표시
@@ -149,9 +134,50 @@ function draw() {
   text(statusText, 10, 20);
 }
 
+// 비디오를 그리는 헬퍼 함수 (항상 좌우 반전)
+function drawVideo(vid) {
+  let srcAspect = vid.width / vid.height;
+  let dstAspect = DISPLAY_WIDTH / DISPLAY_HEIGHT;
+  
+  // 소스 비디오의 크기 계산 (크롭을 위해)
+  let sx, sy, sw, sh;
+  
+  if (srcAspect > dstAspect) {
+    // 비디오가 더 넓은 경우: 좌우를 자름
+    sw = vid.height * dstAspect;
+    sh = vid.height;
+    sx = (vid.width - sw) / 2;
+    sy = 0;
+  } else {
+    // 비디오가 더 높은 경우: 상하를 자름
+    sw = vid.width;
+    sh = vid.width / dstAspect;
+    sx = 0;
+    sy = (vid.height - sh) / 2;
+  }
+  
+  // 캔버스에 그리기 (항상 좌우 반전)
+  push();
+  // 좌우 반전 (거울 모드)
+  translate(width, 0);
+  scale(-1, 1);
+  
+  // 크롭된 영역을 캔버스에 맞게 확대/축소하여 그림
+  image(vid, 
+    (width - DISPLAY_WIDTH) / 2, 
+    0, 
+    DISPLAY_WIDTH, 
+    DISPLAY_HEIGHT,
+    sx, sy, sw, sh
+  );
+  
+  pop();
+}
+
 function classifyVideo() {
   if (!video || !classifier || !videoReady) return;
   
+  // 원본 비디오에서 크롭된 영역만 분류에 사용
   flippedVideo = ml5.flipImage(video);
   classifier.classify(flippedVideo, gotResult);
   flippedVideo.remove();
