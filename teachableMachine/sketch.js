@@ -13,6 +13,16 @@ let serial;
 let videoReady = false;
 let canvasCreated = false;
 
+// Rate limiting variables
+let lastSentTime = 0;
+const MIN_TIME_BETWEEN_SENDS = 500; // Minimum time between sends in milliseconds (0.5 seconds)
+let lastLabelToSend = null;
+let sendScheduled = false;
+
+// Display dimensions (fixed)
+const DISPLAY_WIDTH = 480;
+const DISPLAY_HEIGHT = 360;
+
 // HTML에서 호출되는 모델 로드 함수
 window.setModelUrl = function(url) {
   if (!url.endsWith('/')) url += '/';
@@ -54,18 +64,17 @@ function setup() {
   // 최초 자동 연결 시도
   serial.autoConnectAndOpenPreviouslyApprovedPort(serialOptions);
   
-  // 캔버스를 특정 컨테이너에 생성
-  let canvas = createCanvas(480, 380);
+  // 캔버스를 특정 컨테이너에 생성 (고정된 크기로 생성)
+  let canvas = createCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT + 20); // +20 for status text
   let canvasContainer = document.getElementById('canvasContainer');
   if (canvasContainer) {
     canvas.parent(canvasContainer);
   }
   canvasCreated = true;
   
-  // 비디오 설정
+  // 비디오 설정 (실제 카메라 해상도로 초기화)
   video = createCapture(VIDEO, videoReady_callback);
-  video.size(480, 360);
-  video.hide();
+  // 카메라가 준비되면 실제 해상도로 설정됨 (videoReady_callback에서 처리)
   
   // 초기 상태 메시지
   window.updateModelStatus("모델 URL을 입력하세요", "status-waiting");
@@ -73,6 +82,19 @@ function setup() {
 }
 
 function videoReady_callback() {
+  // 카메라의 실제 해상도 가져오기
+  let aspectRatio = video.width / video.height;
+  
+  // 비디오 크기를 디스플레이 크기에 맞게 조정 (종횡비 유지)
+  let displayAspect = DISPLAY_WIDTH / DISPLAY_HEIGHT;
+  if (aspectRatio > displayAspect) {
+    // 비디오가 더 넓음 (가로로 긴 경우)
+    video.size(DISPLAY_WIDTH, DISPLAY_WIDTH / aspectRatio);
+  } else {
+    // 비디오가 더 높음 (세로로 긴 경우)
+    video.size(DISPLAY_HEIGHT * aspectRatio, DISPLAY_HEIGHT);
+  }
+  
   videoReady = true;
   // 모델이 이미 로드되어 있다면 분류 시작
   if (classifier) {
@@ -84,13 +106,19 @@ function draw() {
   background(50, 50, 60);
   
   if (classifier && flippedVideo && videoReady) {
-    image(flippedVideo, 0, 0);
+    // 플립된 비디오를 캔버스 중앙에 그림
+    let x = (width - DISPLAY_WIDTH) / 2;
+    let y = 0;
+    image(flippedVideo, x, y, DISPLAY_WIDTH, DISPLAY_HEIGHT);
   } else if (video && videoReady) {
     // 비디오가 준비되었지만 모델이 없는 경우
     push();
+    // 비디오를 캔버스 중앙에 그림 (좌우 반전)
     translate(width, 0);
     scale(-1, 1);
-    image(video, 0, 0, width, height - 20);
+    let x = (width - DISPLAY_WIDTH) / 2;
+    let y = 0;
+    image(video, x, y, DISPLAY_WIDTH, DISPLAY_HEIGHT);
     pop();
   }
   
@@ -138,30 +166,64 @@ async function gotResult(error, results) {
   if (results && results.length > 0) {
     label = results[0].label;
     
-    // 결과가 변경되었을 때만 시리얼로 전송
-    if (label != prevLabel) {
+    // 결과가 변경되었을 때만 처리
+    if (label !== prevLabel) {
       console.log("인식 결과:", label);
       
       // HTML 상태 업데이트
       window.updateRecognitionResult(label);
       
-      // 시리얼 포트로 전송
-      if (serial && serial.isOpen()) {
-        serial.write(label);
-        
-        // 디바이스 모드에 따라 다른 종료 문자 사용
-        if (window.currentDeviceMode === 'esp32') {
-          serial.write('\r\n');  // ESP32/Arduino용
-        } else {
-          serial.write('\n');    // Microbit용
-        }
+      // 마지막으로 보낼 값 업데이트
+      lastLabelToSend = label;
+      
+      // 아직 전송이 예약되지 않았으면 예약
+      if (!sendScheduled) {
+        sendScheduled = true;
+        setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS);
       }
     }
+    
     prevLabel = label;
   }
   
   // 다음 프레임 분류 계속
   classifyVideo();
+}
+
+// 마지막으로 저장된 라벨을 전송하는 함수
+function sendLastLabel() {
+  if (lastLabelToSend !== null && serial && serial.isOpen()) {
+    const currentTime = millis();
+    
+    // 마지막 전송으로부터 일정 시간이 지났는지 확인
+    if (currentTime - lastSentTime >= MIN_TIME_BETWEEN_SENDS) {
+      serial.write(lastLabelToSend);
+      
+      // 디바이스 모드에 따라 다른 종료 문자 사용
+      if (window.currentDeviceMode === 'esp32') {
+        serial.write('\r\n');  // ESP32/Arduino용
+      } else {
+        serial.write('\n');    // Microbit용
+      }
+      
+      // 마지막 전송 시간 업데이트
+      lastSentTime = currentTime;
+      console.log("데이터 전송:", lastLabelToSend);
+      
+      // 마지막으로 보낸 값과 현재 보낼 값이 같으면 전송 완료로 처리
+      // 다르면 다시 예약
+      if (lastLabelToSend === prevLabel) {
+        sendScheduled = false;
+      } else {
+        setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS);
+      }
+    } else {
+      // 아직 시간이 지나지 않았으면 다시 시도
+      setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS - (currentTime - lastSentTime));
+    }
+  } else {
+    sendScheduled = false;
+  }
 }
 
 // 시리얼 이벤트 핸들러들
