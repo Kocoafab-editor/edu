@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Web Bluetooth 연결</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        input[type="text"] {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        .messages {
+            border: 1px solid #ddd;
+            height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .received {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        .sent {
+            background-color: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ESP32 Web Bluetooth 연결</h1>
+        
+        <div id="status" class="status disconnected">
+            연결 안됨
+        </div>
+        
+        <div>
+            <button id="connectBtn">연결하기</button>
+            <button id="disconnectBtn" disabled>연결 끊기</button>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <h3>메시지 보내기</h3>
+            <input type="text" id="messageInput" placeholder="메시지를 입력하세요..." disabled>
+            <button id="sendBtn" disabled>전송</button>
+        </div>
+        
+        <div>
+            <h3>수신된 메시지</h3>
+            <div id="messages" class="messages"></div>
+            <button id="clearBtn">메시지 지우기</button>
+        </div>
+    </div>
+
+    <script>
+        // Web Bluetooth API를 사용한 ESP32 연결
+        class ESP32WebBluetooth {
+            constructor() {
+                this.device = null;
+                this.server = null;
+                this.service = null;
+                this.txCharacteristic = null;
+                this.rxCharacteristic = null;
+                this.isConnected = false;
+                
+                // UART 서비스 UUID (ESP32 코드와 동일) - 소문자로 변경
+                this.serviceUUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+                this.txUUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+                this.rxUUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+                
+                this.onMessageReceived = null;
+                this.onConnectionChanged = null;
+            }
+            
+            async connect() {
+                try {
+                    console.log('BLE 기기 검색 중...');
+                    this.device = await navigator.bluetooth.requestDevice({
+                        filters: [
+                            { services: [this.serviceUUID] }
+                        ]
+                    });
+                    
+                    console.log('연결 중:', this.device.name);
+                    this.server = await this.device.gatt.connect();
+                    
+                    console.log('서비스 검색 중...');
+                    this.service = await this.server.getPrimaryService(this.serviceUUID);
+                    
+                    console.log('특성 검색 중...');
+                    this.txCharacteristic = await this.service.getCharacteristic(this.txUUID);
+                    this.rxCharacteristic = await this.service.getCharacteristic(this.rxUUID);
+                    
+                    // 데이터 수신을 위한 알림 설정
+                    await this.txCharacteristic.startNotifications();
+                    this.txCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
+                        const value = new TextDecoder().decode(event.target.value);
+                        if (this.onMessageReceived) {
+                            this.onMessageReceived(value);
+                        }
+                    });
+                    
+                    // 연결 해제 이벤트 처리
+                    this.device.addEventListener('gattserverdisconnected', () => {
+                        this.isConnected = false;
+                        if (this.onConnectionChanged) {
+                            this.onConnectionChanged(false);
+                        }
+                    });
+                    
+                    this.isConnected = true;
+                    if (this.onConnectionChanged) {
+                        this.onConnectionChanged(true);
+                    }
+                    
+                    console.log('연결 성공!');
+                    return true;
+                    
+                } catch (error) {
+                    console.error('연결 실패:', error);
+                    return false;
+                }
+            }
+            
+            async disconnect() {
+                if (this.device && this.device.gatt.connected) {
+                    await this.device.gatt.disconnect();
+                }
+                this.isConnected = false;
+                if (this.onConnectionChanged) {
+                    this.onConnectionChanged(false);
+                }
+            }
+            
+            async sendMessage(message) {
+                if (!this.isConnected || !this.rxCharacteristic) {
+                    throw new Error('연결되지 않음');
+                }
+                
+                const encoder = new TextEncoder();
+                const data = encoder.encode(message);
+                await this.rxCharacteristic.writeValue(data);
+            }
+        }
+        
+        // UI 요소들
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const messageInput = document.getElementById('messageInput');
+        const messagesDiv = document.getElementById('messages');
+        const statusDiv = document.getElementById('status');
+        const clearBtn = document.getElementById('clearBtn');
+        
+        // ESP32 Bluetooth 인스턴스 생성
+        const esp32 = new ESP32WebBluetooth();
+        
+        // 연결 상태 변경 시 호출
+        esp32.onConnectionChanged = (connected) => {
+            if (connected) {
+                statusDiv.textContent = '연결됨';
+                statusDiv.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                sendBtn.disabled = false;
+                messageInput.disabled = false;
+            } else {
+                statusDiv.textContent = '연결 안됨';
+                statusDiv.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                sendBtn.disabled = true;
+                messageInput.disabled = true;
+            }
+        };
+        
+        // 메시지 수신 시 호출
+        esp32.onMessageReceived = (message) => {
+            addMessage(message, 'received');
+        };
+        
+        // 메시지를 화면에 추가
+        function addMessage(message, type) {
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${type}`;
+            messageEl.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            messagesDiv.appendChild(messageEl);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // 이벤트 리스너들
+        connectBtn.addEventListener('click', async () => {
+            const success = await esp32.connect();
+            if (!success) {
+                alert('연결에 실패했습니다. 다시 시도해주세요.');
+            }
+        });
+        
+        disconnectBtn.addEventListener('click', async () => {
+            await esp32.disconnect();
+        });
+        
+        sendBtn.addEventListener('click', async () => {
+            const message = messageInput.value.trim();
+            if (message) {
+                try {
+                    await esp32.sendMessage(message);
+                    addMessage(message, 'sent');
+                    messageInput.value = '';
+                } catch (error) {
+                    alert('메시지 전송 실패: ' + error.message);
+                }
+            }
+        });
+        
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendBtn.click();
+            }
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            messagesDiv.innerHTML = '';
+        });
+        
+        // Web Bluetooth API 지원 확인
+        if (!navigator.bluetooth) {
+            alert('이 브라우저는 Web Bluetooth를 지원하지 않습니다. Chrome 브라우저를 사용해주세요.');
+        }
+    </script>
+</body>
+</html>
