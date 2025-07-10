@@ -194,7 +194,6 @@ async function gotResult(error, results) {
     
     // 결과가 변경되었을 때만 처리
     if (label !== prevLabel) {
-      console.log("인식 결과:", label);
       
       // HTML 상태 업데이트
       window.updateRecognitionResult(label);
@@ -234,7 +233,6 @@ function sendLastLabel() {
       
       // 마지막 전송 시간 업데이트
       lastSentTime = currentTime;
-      console.log("데이터 전송:", lastLabelToSend);
       
       // 마지막으로 보낸 값과 현재 보낼 값이 같으면 전송 완료로 처리
       // 다르면 다시 예약

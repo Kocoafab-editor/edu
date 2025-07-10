@@ -13,6 +13,9 @@
     <link rel="stylesheet" href="../common/header.css">
     <link rel="stylesheet" href="../common/template.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 </head>
 
 <body class="serial-connection">
@@ -109,13 +112,25 @@
 
                 <div class="instructions">
                     <h3>📋 사용 방법</h3>
-                    <ol>
-                        <li>헤더에서 사용할 디바이스(마이크로비트 또는 ESP32)를 선택하세요</li>
-                        <li>티처블머신에서 학습한 모델의 URL을 입력하고 "모델 로드"를 클릭하세요</li>
-                        <li>디바이스 에디터에서 시리얼 통신 코드를 작성하고 업로드하세요</li>
-                        <li>"시리얼통신 연결" 버튼을 클릭하여 디바이스와 연결하세요</li>
-                        <li>웹캠이 인식한 결과가 자동으로 디바이스로 전송됩니다</li>
-                    </ol>
+                    <div id="instructionsContent">
+                        <!-- Instructions will be rendered here by JavaScript -->
+                    </div>
+                </div>
+
+                <div id="codeExamples" class="code-contents hidden">
+                    <h3>📋 사용 방법</h3>
+                    <div class="code-examples">
+                        <div class="example-tabs">
+                            <button class="example-tab active" data-example="basic">기본 예시</button>
+                            <button class="example-tab" data-example="advanced">스마트홈Plus 키트 모터 제어 예시</button>
+                            <button class="example-tab" data-example="custom">파이파이키트 네오픽셀 제어 예시</button>
+                        </div>
+                        <div class="example-content">
+                            <pre class="line-numbers"><code class="language-python">
+                                </code></pre>
+                            <button class="copy-btn">📋 복사하기</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -181,9 +196,154 @@
         }
 
         // 디바이스 토글 이벤트
+        // Function to render instructions based on current device
+        function renderInstructions(isESP32) {
+            const instructions = isESP32 ? [
+                '헤더에서 사용할 디바이스(마이크로비트 또는 ESP32)를 선택하세요',
+                '티처블머신에서 학습한 모델의 URL을 입력하고 "모델 로드"를 클릭하세요',
+                'Thonny에서 ESP32용 시리얼 통신 코드를 작성하고 업로드하세요',
+                'Thonny 우측 하단 MicroPython(ESP32)를 Local Python 3로 변경하세요',
+                '현재 페이지의 "시리얼통신 연결" 버튼을 클릭하여 ESP32와 연결하세요',
+                '웹캠이 인식한 결과가 자동으로 ESP32로 전송됩니다',
+                '코드를 수정했다면, 반드시 "시리얼통신 연결"버튼을 다시 눌러 웹 브라우저와 연결을 끊고 Thonny로 업로드해 주세요'
+            ] : [
+                '헤더에서 사용할 디바이스(마이크로비트 또는 ESP32)를 선택하세요',
+                '티처블머신에서 학습한 모델의 URL을 입력하고 "모델 로드"를 클릭하세요',
+                '마이크로비트 에디터에서 시리얼 통신 코드를 작성하고 업로드하세요',
+                '현재 페이지의 "시리얼통신 연결" 버튼을 클릭하여 마이크로비트와 연결하세요',
+                '웹캠이 인식한 결과가 자동으로 마이크로비트로 전송됩니다'
+            ];
+
+            const instructionsHTML = `
+                <ol>
+                    ${instructions.map(step => `<li>${step}</li>`).join('')}
+                </ol>
+            `;
+            
+            document.getElementById('instructionsContent').innerHTML = instructionsHTML;
+
+            // Show/hide code examples based on device mode
+            const codeExamples = document.getElementById('codeExamples');
+            if (codeExamples) {
+                codeExamples.classList.toggle('hidden', !isESP32);
+                if (isESP32) {
+                    initializeCodeExamples();
+                }
+            }
+        }
+
+        // Initial render
+        renderInstructions(isESP32Mode);
+
+
+        function initializeCodeExamples() {
+            // Example code content
+            const examples = {
+                basic: `# 티처블머신 데이터 출력하기
+
+while True:
+    data = input()
+    print(data)`,
+                advanced: `# 스마트홈 모터 제어 예시
+
+from servo import Servo
+
+motor = Servo(pin=13)
+
+while(True):
+    data = input()
+    if data == 'Class 1':           # 티처블머신 레이블 이름에 맞게 변경 
+        motor.move(90)
+    elif data == 'Class 2':         # 티처블머신 레이블 이름에 맞게 변경 
+        motor.move(30)`,
+                custom: `# 파이파이키트 네오픽셀 제어 예시
+
+from machine import Pin
+from neopixel import NeoPixel
+
+pin = Pin(14, Pin.OUT)
+np = NeoPixel(pin, 12) 
+
+while(True):
+    data = input()
+    if data == 'Class 1':           # 티처블머신 레이블 이름에 맞게 변경 
+        for i in range(0, 12):
+            np[i] = (255, 255, 0)   # Class 1 레이블일 때 노란색 켜기
+        np.write()
+    elif data == 'Class 2':         # 티처블머신 레이블 이름에 맞게 변경 
+        for i in range(0, 12):
+            np[i] = (0, 0, 255)     # Class 2 레이블일 때 파란색 켜기
+        np.write()`
+            };
+
+            // Function to update code content
+            function updateCodeContent(exampleType) {
+                const exampleContent = document.querySelector('.example-content');
+                const codeElement = exampleContent.querySelector('code');
+                if (codeElement) {
+                    codeElement.textContent = examples[exampleType];
+                    // Initialize Prism.js syntax highlighting
+                    Prism.highlightElement(codeElement);
+                }
+            }
+
+            // 탭 클릭 이벤트 처리
+            const exampleTabs = document.querySelectorAll('.example-tab');
+            exampleTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const exampleType = tab.dataset.example;
+                    const exampleContent = document.querySelector('.example-content');
+                    
+                    // Deactivate all tabs
+                    exampleTabs.forEach(t => t.classList.remove('active'));
+                    // Activate clicked tab
+                    tab.classList.add('active');
+                    
+                    // Update code content
+                    updateCodeContent(exampleType);
+                });
+            });
+
+            // Initialize default content
+            updateCodeContent('basic');
+
+            // Copy button functionality
+            const copyBtn = document.querySelector('.copy-btn');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', () => {
+                    const codeElement = document.querySelector('.example-content code');
+                    if (!codeElement) {
+                        alert('먼저 코드 예시를 선택해주세요.');
+                        return;
+                    }
+                    
+                    const code = codeElement.textContent;
+                    navigator.clipboard.writeText(code)
+                        .then(() => {
+                            copyBtn.textContent = '📋 복사됨!';
+                            copyBtn.classList.add('success');
+                            setTimeout(() => {
+                                copyBtn.textContent = '📋 복사하기';
+                                copyBtn.classList.remove('success');
+                            }, 2000);
+                        })
+                        .catch(err => {
+                            console.error('Copy failed:', err);
+                            copyBtn.textContent = '❌ 복사 실패';
+                            setTimeout(() => {
+                                copyBtn.textContent = '📋 복사하기';
+                            }, 2000);
+                        });
+                });
+            }
+        }
+
         deviceToggle.addEventListener('click', function() {
             isESP32Mode = !isESP32Mode;
             deviceToggle.classList.toggle('active', isESP32Mode);
+            
+            // Update instructions
+            renderInstructions(isESP32Mode);
             
             if (isESP32Mode) {
                 editorButton.textContent = 'Thonny IDE 다운로드';

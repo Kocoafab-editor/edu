@@ -521,6 +521,96 @@ body {
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
 }
 
+/* Instructions styles */
+.instructions ol {
+    padding-left: 20px;
+    margin: 10px 0;
+}
+
+.instructions li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+/* Code Examples Styles */
+.code-examples {
+    margin-top: 20px;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.example-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.example-tab {
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    color: #4a5568;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.example-tab:hover {
+    color: #667eea;
+}
+
+.example-tab.active {
+    color: #667eea;
+    border-bottom: 2px solid #667eea;
+}
+
+.example-content {
+    position: relative;
+}
+
+.code-block {
+    background: #2c2c2c;
+    border-radius: 8px;
+    padding: 15px;
+    overflow-x: auto;
+    margin-bottom: 10px;
+}
+
+.code-block code {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9em;
+    line-height: 1.6;
+}
+
+.copy-btn {
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    background: #e2e8f0;
+    color: #4a5568;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+}
+
+.copy-btn:hover {
+    background: #cbd5e1;
+}
+
+.copy-btn.success {
+    background: #dcfce7;
+    color: #10b981;
+}
+
+.hidden {
+    display: none;
+}
+
 .btn-secondary {
     background: #e2e8f0;
     color: #4a5568;
@@ -628,7 +718,7 @@ body {
     background: #fef5e7;
     border-radius: 10px;
     padding: 20px;
-    margin-top: 20px;
+    margin-top: 60px;
 }
 
 .instructions h3 {
@@ -643,6 +733,13 @@ body {
 
 .instructions li {
     margin-bottom: 8px;
+}
+
+.code-contents {
+    background: #fffcf8;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 60px;
 }
 
 /* 모바일 반응형 */
