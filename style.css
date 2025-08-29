@@ -33,6 +33,7 @@ body {
     color: #eaeaff;
     font-size: 1.1em;
     margin-top: 8px;
+    margin-bottom: 20px;
     text-shadow: 0 1px 6px rgba(80,40,160,0.12);
 }
 .container h1:not(.main-brand),

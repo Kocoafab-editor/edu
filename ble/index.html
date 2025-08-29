@@ -1,285 +1,612 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Web Bluetooth 연결</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .status {
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            font-weight: bold;
-        }
-        .connected {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .disconnected {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 5px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        button:disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
-        }
-        input[type="text"] {
-            width: 300px;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin: 5px;
-        }
-        .messages {
-            border: 1px solid #ddd;
-            height: 200px;
-            overflow-y: auto;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-            margin: 10px 0;
-        }
-        .message {
-            margin: 5px 0;
-            padding: 5px;
-            border-radius: 3px;
-        }
-        .received {
-            background-color: #e3f2fd;
-            border-left: 4px solid #2196f3;
-        }
-        .sent {
-            background-color: #f3e5f5;
-            border-left: 4px solid #9c27b0;
-        }
-    </style>
+    <title>웹 블루투스 통신 - 오렌지보드/ESP32</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="../static/favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="../static/favicon/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../static/favicon/favicon-16x16.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../common/header.css">
+    <link rel="stylesheet" href="../common/template.css">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="container">
-        <h1>ESP32 Web Bluetooth 연결</h1>
-        
-        <div id="status" class="status disconnected">
-            연결 안됨
-        </div>
-        
-        <div>
-            <button id="connectBtn">연결하기</button>
-            <button id="disconnectBtn" disabled>연결 끊기</button>
-        </div>
-        
-        <div style="margin-top: 20px;">
-            <h3>메시지 보내기</h3>
-            <input type="text" id="messageInput" placeholder="메시지를 입력하세요..." disabled>
-            <button id="sendBtn" disabled>전송</button>
-        </div>
-        
-        <div>
-            <h3>수신된 메시지</h3>
-            <div id="messages" class="messages"></div>
-            <button id="clearBtn">메시지 지우기</button>
+
+<body class="ble-interface">
+    <div class="header">
+        <a href="../index.html" class="back-btn" title="메인으로 돌아가기">&lt; 메인화면</a>
+        <div class="header-content">
+            <!-- 접기/펼치기 버튼 -->
+            <button id="headerToggleBtn" class="btn-small header-toggle-btn" title="설정 접기/펼치기"></button>
+            <!-- 기존 헤더 타이틀/설명 -->
+            <div class="header-title-desc">
+                <h1 id="headerTitle">웹 블루투스 통신</h1>
+                <p>오렌지보드/ESP32와의 블루투스 통신을 위한 웹 인터페이스</p>
+            </div>
+            <div class="header-settings-bar">
+                <!-- 1. MCU 토글 (왼쪽) -->
+                <div class="header-settings-col header-settings-left">
+                    <div class="settings-title">디바이스 선택</div>
+                    <div class="toggle-container">
+                      <span class="toggle-label">오렌지보드</span>
+                      <div class="toggle-switch" id="deviceToggle">
+                        <div class="toggle-slider"></div>
+                      </div>
+                      <span class="toggle-label">ESP32</span>
+                    </div>
+                </div>
+                <!-- 2. 블루투스 연결 버튼 (가운데) -->
+                <div class="header-settings-col header-settings-right">
+                    <div class="settings-title">블루투스 연결</div>
+                    <button id="connectBtn" class="btn">
+                        <span class="status-indicator status-disconnected"></span>
+                        <span id="connectBtnText">연결하기</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script>
-        // Web Bluetooth API를 사용한 ESP32 연결
-        class ESP32WebBluetooth {
+    <div class="container">
+        <div class="mode-toggle">
+            <button class="mode-btn active" data-mode="chat">채팅 모드</button>
+            <button class="mode-btn" data-mode="buttonBoard">버튼 보드</button>
+        </div>
+        <div class="main-section">
+
+            <div class="content-section">
+                <!-- Mode Toggle -->
+                
+                <!-- Chat Mode -->
+                <div id="chatMode" class="mode-content active">
+                    <div class="instructions-panel">
+                        <div class="instructions-accordion-header" id="instructionsHeaderChat">
+                            <div class="instructions-accordion-title">주의사항 및 사용 방법</div>
+                            <span class="instructions-accordion-arrow">▼</span>
+                        </div>
+                        <div class="instructions" id="instructionsChatWrapper">
+                            <div id="instructionsChat"></div>
+                        </div>
+                    </div>
+                    <div class="chat-container">
+                        <div class="chat-header">
+                            <h3>블루투스 메시지 주고받기</h3>
+                            <p>블루투스 장치에 연결하여 메시지를 주고받을 수 있습니다.</p>
+                        </div>
+                        <div class="messages" id="chatMessages"></div>
+                        <div class="chat-input">
+                            <input type="text" id="messageInput" placeholder="메시지를 입력하세요...">
+                            <button id="sendBtn">전송</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Button Board Mode -->
+                <div id="buttonBoardMode" class="mode-content">
+                    <div class="instructions-panel">
+                        <div class="instructions-accordion-header" id="instructionsHeaderBoard">
+                            <div class="instructions-accordion-title">주의사항 및 사용 방법</div>
+                            <span class="instructions-accordion-arrow">▼</span>
+                        </div>
+                        <div class="instructions" id="instructionsButtonBoardWrapper">
+                            <div id="instructionsButtonBoard"></div>
+                        </div>
+                    </div>
+                    <div class="button-grid-container">
+                        <div class="button-header">
+                            <h3>버튼으로 데이터 전송하기</h3>
+                        </div>
+                        <div class="preset-selector">
+                            <label for="presetSelect">프리셋 선택: </label>
+                            <select id="presetSelect">
+                                <option value="custom">사용자 정의</option>
+                                <option value="numpad">숫자 패드</option>
+                                <option value="gamepad">게임 패드</option>
+                            </select>
+                        </div>
+                        
+                        <div class="grid-size-selector preset-custom-only">
+                            <div>
+                                <label>그리드 크기 설정</label>
+                                <select id="gridRows">
+                                    <option value="1">1 행</option>
+                                    <option value="2">2 행</option>
+                                    <option value="3">3 행</option>
+                                    <option value="4">4 행</option>
+                                    <option value="5" selected>5 행</option>
+                                </select>
+                                <select id="gridCols">
+                                    <option value="1">1 열</option>
+                                    <option value="2">2 열</option>
+                                    <option value="3">3 열</option>
+                                    <option value="4">4 열</option>
+                                    <option value="5" selected>5 열</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Grid Controls -->
+                        <div class="grid-controls preset-custom-only">
+                            <div class="grid-controls-left">
+                                <button id="createGrid" class="btn">그리드 생성</button>
+                            </div>
+                            <div class="grid-controls-right">
+                                <button id="editGrid" class="btn">편집 모드</button>
+                                <button id="saveGrid" class="btn" style="display: none;">저장</button>
+                                <button id="cancelEdit" class="btn" style="display: none;">취소</button>
+                            </div>
+                        </div>
+                        
+                        <div class="button-grid" id="buttonGrid">
+                            <!-- Buttons will be generated by JavaScript -->
+                        </div>
+                        
+                        
+                        <!-- Button Editor Modal -->
+                        <div id="btnModalOverlay" class="modal-overlay hidden">
+                            <div id="btnModal" class="modal-card">
+                                <div class="modal-header">
+                                    <h3>버튼 설정</h3>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="form-row">
+                                        <label>라벨 (최대 6자)</label>
+                                        <input type="text" id="btnLabel" class="form-input" maxlength="6">
+                                    </div>
+                                    <div class="form-row">
+                                        <label>전송할 값</label>
+                                        <input type="text" id="btnValue" class="form-input">
+                                    </div>
+                                    <div class="form-row">
+                                        <label>아이콘</label>
+                                        <div class="icon-input-row">
+                                            <select id="btnIcon" class="form-input">
+                                                <option value="">없음</option>
+                                                <optgroup label="Font Awesome">
+                                                    <option value="fas fa-power-off">전원</option>
+                                                    <option value="fas fa-play">재생</option>
+                                                    <option value="fas fa-pause">일시정지</option>
+                                                    <option value="fas fa-stop">정지</option>
+                                                    <option value="fas fa-volume-up">소리</option>
+                                                </optgroup>
+                                                <optgroup label="화살표 (Unicode)">
+                                                    <option value="emoji-←">←</option>
+                                                    <option value="emoji-↑">↑</option>
+                                                    <option value="emoji-→">→</option>
+                                                    <option value="emoji-↓">↓</option>
+                                                    <option value="emoji-↔">↔</option>
+                                                    <option value="emoji-↕">↕</option>
+                                                    <option value="emoji-↖">↖</option>
+                                                    <option value="emoji-↗">↗</option>
+                                                    <option value="emoji-↘">↘</option>
+                                                    <option value="emoji-↙">↙</option>
+                                                </optgroup>
+                                                <optgroup label="이모지">
+                                                    <option value="emoji-😀">😀</option>
+                                                    <option value="emoji-🔥">🔥</option>
+                                                    <option value="emoji-👍">👍</option>
+                                                    <option value="emoji-🚀">🚀</option>
+                                                </optgroup>
+                                            </select>
+                                            <div class="icon-preview" title="아이콘 미리보기">
+                                                <i id="btnIconPreview"></i>
+                                                <span id="btnEmojiPreview" class="emoji-preview"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <label>배경색</label>
+                                        <input type="color" id="btnBgColor" value="#ffffff">
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button id="saveBtnConfig" class="btn">저장</button>
+                                    <button id="deleteBtnConfig" class="btn btn-danger">삭제</button>
+                                    <button id="cancelBtnConfig" class="btn btn-secondary">취소</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 간단한 알림 (전역)
+        window.showNotification = function(message, type = 'success') {
+            try {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                document.body.appendChild(notification);
+                setTimeout(() => {
+                    notification.classList.add('fade-out');
+                    setTimeout(() => notification.remove(), 300);
+                }, 2000);
+            } catch (e) {
+                console.log(`[${type}] ${message}`);
+            }
+        };
+
+        // 채팅 메시지 추가
+        function addMessage(text, type = 'received') {
+            const messages = document.getElementById('chatMessages');
+            if (!messages) return;
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = text;
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'message-time';
+            timeSpan.textContent = new Date().toLocaleTimeString();
+            messageDiv.appendChild(document.createElement('br'));
+            messageDiv.appendChild(timeSpan);
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        // 사용방법 렌더링
+        function renderInstructions(mode) {
+            try {
+                const containerId = mode === 'chat' ? 'instructionsChat' : 'instructionsButtonBoard';
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                const warningHTML = `
+                    <div class="warning-banner">
+                        <div class="warning-title">주의사항</div>
+                        <ul>
+                            <li>이 페이지는 Web Bluetooth를 지원하는 데스크톱용 Chrome/Edge 브라우저에서 동작합니다.</li>
+                            <li>iPhone(iOS Safari)은 Web Bluetooth 미지원으로 사용할 수 없습니다.</li>
+                            <li>PC의 블루투스 하드웨어와 드라이버가 정상 동작해야 합니다.</li>
+                        </ul>
+                    </div>
+                `;
+
+                const steps = mode === 'chat'
+                    ? [
+                        '상단 토글로 사용할 디바이스(오렌지보드/ESP32)를 선택합니다.',
+                        '블루투스 연결 버튼을 눌러 장치를 선택하고 연결합니다.',
+                        '연결이 되면, 채팅 입력창에 전송할 메시지를 입력하고 “전송”을 클릭하거나 엔터키를 누릅니다.',
+                        '상대 장치에서 보낸 메시지는 대화창에 실시간으로 표시됩니다.',
+                        '디바이스 모드를 변경하거나 페이지를 새로고침하면 연결이 끊길 수 있습니다.',
+                        '디바이스를 연결 해제하려면 블루투스 연결 버튼을 다시 눌러 연결을 끊습니다.'
+                    ]
+                    : [
+                        '상단 토글로 사용할 디바이스(오렌지보드/ESP32)를 선택합니다.',
+                        '프리셋(숫자 패드/게임 패드) 또는 사용자 정의를 선택합니다.',
+                        '사용자 정의일 경우 그리드 크기를 선택하고 “그리드 생성”을 클릭합니다.',
+                        '“편집 모드”에서 각 버튼의 라벨/전송값/아이콘/색상을 설정하고 저장합니다.',
+                        '버튼 추가로 버튼을 추가할 수 있으며, 최대 행에 도달하면 열이 증가합니다.',
+                        '버튼을 클릭하면 설정된 값이 블루투스 통해 장치로 전송됩니다.',
+                        '디바이스 모드를 변경하거나 페이지를 새로고침하면 연결이 끊길 수 있습니다.',
+                        '디바이스를 연결 해제하려면 블루투스 연결 버튼을 다시 눌러 연결을 끊습니다.'
+                    ];
+
+                const stepsHTML = `<h3>사용 방법</h3><ol>${steps.map(s => `<li>${s}</li>`).join('')}</ol>`;
+                container.innerHTML = warningHTML + stepsHTML;
+            } catch (e) {
+                console.warn('renderInstructions error:', e);
+            }
+        }
+
+        // 안내 패널 아코디언 토글 상태 저장/복원 (우측 화살표 스타일)
+        function setupInstructionsToggle() {
+            const chatHeader = document.getElementById('instructionsHeaderChat');
+            const chatWrapper = document.getElementById('instructionsChatWrapper');
+            const boardHeader = document.getElementById('instructionsHeaderBoard');
+            const boardWrapper = document.getElementById('instructionsButtonBoardWrapper');
+
+            // 기본: 펼쳐진 상태(true) - 단일 키로 통합
+            const visibleStored = localStorage.getItem('ble.instructions.visible');
+            const isOpen = visibleStored === null ? true : visibleStored === 'true';
+
+            // 초기 표시 상태 동기화
+            if (chatHeader && chatWrapper) {
+                chatWrapper.style.display = isOpen ? 'block' : 'none';
+                chatHeader.classList.toggle('open', isOpen);
+            }
+            if (boardHeader && boardWrapper) {
+                boardWrapper.style.display = isOpen ? 'block' : 'none';
+                boardHeader.classList.toggle('open', isOpen);
+            }
+
+            // 하나를 클릭하면 양쪽 동기화 + 로컬 스토리지 반영
+            function toggleAllBy(nextOpen) {
+                if (chatWrapper && chatHeader) {
+                    chatWrapper.style.display = nextOpen ? 'block' : 'none';
+                    chatHeader.classList.toggle('open', nextOpen);
+                }
+                if (boardWrapper && boardHeader) {
+                    boardWrapper.style.display = nextOpen ? 'block' : 'none';
+                    boardHeader.classList.toggle('open', nextOpen);
+                }
+                localStorage.setItem('ble.instructions.visible', String(nextOpen));
+            }
+
+            if (chatHeader) {
+                chatHeader.addEventListener('click', () => {
+                    const nextOpen = !(chatWrapper && chatWrapper.style.display !== 'none');
+                    toggleAllBy(nextOpen);
+                });
+            }
+
+            if (boardHeader) {
+                boardHeader.addEventListener('click', () => {
+                    const nextOpen = !(boardWrapper && boardWrapper.style.display !== 'none');
+                    toggleAllBy(nextOpen);
+                });
+            }
+        }
+
+        // BLE 매니저 (ESP32/아두이노 겸용)
+        class BLEManager {
             constructor() {
+                this.device = null;
+                this.server = null;
+                this.service = null;
+                this.txCharacteristic = null; // 0x0002
+                this.rxCharacteristic = null; // 0x0003
+                this.serviceUUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+                this.txUUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+                this.rxUUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+                this.isESP32Mode = true;
+                this._onReceive = null;
+            }
+
+            setMode(isESP32) {
+                this.isESP32Mode = isESP32;
+            }
+
+            onReceive(cb) {
+                this._onReceive = cb;
+            }
+
+            isConnected() {
+                return !!(this.device && this.device.gatt && this.device.gatt.connected);
+            }
+
+            async connect() {
+                try {
+                    this._updateStatusUI('연결 중...', 'connecting');
+
+                    const options = this.isESP32Mode
+                        ? { filters: [ { services: [ this.serviceUUID ] } ] }
+                        : { filters: [ { name: 'ARDUINO_NUS' }, { namePrefix: 'ARDUINO' } ], optionalServices: [ this.serviceUUID ] };
+
+                    this.device = await navigator.bluetooth.requestDevice(options);
+                    this.device.addEventListener('gattserverdisconnected', () => this._onDisconnected());
+
+                    this.server = await this.device.gatt.connect();
+                    this.service = await this.server.getPrimaryService(this.serviceUUID);
+
+                    this.txCharacteristic = await this.service.getCharacteristic(this.txUUID);
+                    this.rxCharacteristic = await this.service.getCharacteristic(this.rxUUID);
+
+                    // 알림 설정: ESP32는 TX(0x0002), 아두이노는 RX(0x0003)
+                    if (this.isESP32Mode) {
+                        await this.txCharacteristic.startNotifications();
+                        this.txCharacteristic.addEventListener('characteristicvaluechanged', (event) => this._handleNotify(event));
+                    } else {
+                        await this.rxCharacteristic.startNotifications();
+                        this.rxCharacteristic.addEventListener('characteristicvaluechanged', (event) => this._handleNotify(event));
+                    }
+
+                    this._updateStatusUI('연결됨', 'connected');
+                    addMessage(`연결됨: ${this.device.name || '알 수 없는 장치'}`, 'received');
+                } catch (error) {
+                    console.error('연결 실패:', error);
+                    window.showNotification(`연결 실패: ${error.message}`, 'error');
+                    this._updateStatusUI('연결 실패', 'disconnected');
+                    this._reset();
+                }
+            }
+
+            async disconnect() {
+                try {
+                    // 알림 해제
+                    try {
+                        if (this.isESP32Mode && this.txCharacteristic) {
+                            await this.txCharacteristic.stopNotifications();
+                        }
+                        if (!this.isESP32Mode && this.rxCharacteristic) {
+                            await this.rxCharacteristic.stopNotifications();
+                        }
+                    } catch (e) {}
+
+                    if (this.device) {
+                        if (this.device.gatt.connected) {
+                            await this.device.gatt.disconnect();
+                        }
+                    }
+                } catch (e) {
+                    console.warn('disconnect error:', e);
+                } finally {
+                    this._updateStatusUI('연결 끊김', 'disconnected');
+                    addMessage('연결이 끊어졌습니다.', 'received');
+                    this._reset();
+                }
+            }
+
+            async sendMessage(text) {
+                const msg = (text || '').trim();
+                if (!msg) return;
+                if (!this.isConnected()) {
+                    window.showNotification('오류: BLE 장치가 연결되지 않았습니다.', 'error');
+                    return;
+                }
+                try {
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode(msg + '\n');
+                    // ESP32는 RX(0x0003)로 쓰기, 아두이노는 TX(0x0002)로 쓰기
+                    if (this.isESP32Mode) {
+                        await this.rxCharacteristic.writeValue(data);
+                    } else {
+                        await this.txCharacteristic.writeValue(data);
+                    }
+                } catch (error) {
+                    console.error('전송 실패:', error);
+                    window.showNotification(`전송 실패: ${error.message}`, 'error');
+                }
+            }
+
+            _handleNotify(event) {
+                try {
+                    const value = event.target.value;
+                    const decoder = new TextDecoder('utf-8');
+                    const text = decoder.decode(value).trim();
+                    if (text) {
+                        if (typeof this._onReceive === 'function') this._onReceive(text);
+                    }
+                } catch (e) {
+                    console.warn('notify decode error:', e);
+                }
+            }
+
+            _onDisconnected() {
+                this._updateStatusUI('연결 끊김', 'disconnected');
+                this._reset();
+                window.showNotification('장치 연결이 해제되었습니다.', 'error');
+            }
+
+            _reset() {
                 this.device = null;
                 this.server = null;
                 this.service = null;
                 this.txCharacteristic = null;
                 this.rxCharacteristic = null;
-                this.isConnected = false;
-                
-                // UART 서비스 UUID (ESP32 코드와 동일) - 소문자로 변경
-                this.serviceUUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-                this.txUUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
-                this.rxUUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
-                
-                this.onMessageReceived = null;
-                this.onConnectionChanged = null;
             }
-            
-            async connect() {
-                try {
-                    console.log('BLE 기기 검색 중...');
-                    this.device = await navigator.bluetooth.requestDevice({
-                        filters: [
-                            { services: [this.serviceUUID] }
-                        ]
-                    });
-                    
-                    console.log('연결 중:', this.device.name);
-                    this.server = await this.device.gatt.connect();
-                    
-                    console.log('서비스 검색 중...');
-                    this.service = await this.server.getPrimaryService(this.serviceUUID);
-                    
-                    console.log('특성 검색 중...');
-                    this.txCharacteristic = await this.service.getCharacteristic(this.txUUID);
-                    this.rxCharacteristic = await this.service.getCharacteristic(this.rxUUID);
-                    
-                    // 데이터 수신을 위한 알림 설정
-                    await this.txCharacteristic.startNotifications();
-                    this.txCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
-                        const value = new TextDecoder().decode(event.target.value);
-                        if (this.onMessageReceived) {
-                            this.onMessageReceived(value);
-                        }
-                    });
-                    
-                    // 연결 해제 이벤트 처리
-                    this.device.addEventListener('gattserverdisconnected', () => {
-                        this.isConnected = false;
-                        if (this.onConnectionChanged) {
-                            this.onConnectionChanged(false);
-                        }
-                    });
-                    
-                    this.isConnected = true;
-                    if (this.onConnectionChanged) {
-                        this.onConnectionChanged(true);
+
+            _updateStatusUI(text, status) {
+                const connectBtn = document.getElementById('connectBtn');
+                const connectBtnText = document.getElementById('connectBtnText');
+                const statusIndicator = document.querySelector('.status-indicator');
+                if (connectBtnText) connectBtnText.textContent = text;
+                if (statusIndicator) {
+                    statusIndicator.className = 'status-indicator ' + (
+                        status === 'connected' ? 'status-connected' :
+                        status === 'connecting' ? 'status-connecting' :
+                        'status-disconnected'
+                    );
+                }
+            }
+        }
+
+        // 전역 BLE 연결 인스턴스
+        window.bleConnection = new BLEManager();
+
+        // UI 초기화 및 이벤트 바인딩
+        document.addEventListener('DOMContentLoaded', () => {
+            // 모드 전환 (채팅/버튼보드)
+            const chatMode = document.getElementById('chatMode');
+            const buttonBoardMode = document.getElementById('buttonBoardMode');
+            const modeButtons = document.querySelectorAll('.mode-btn');
+            modeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    modeButtons.forEach(btn => btn.classList.remove('active'));
+                    chatMode.classList.remove('active');
+                    buttonBoardMode.classList.remove('active');
+                    this.classList.add('active');
+                    if (this.dataset.mode === 'chat') {
+                        chatMode.classList.add('active');
+                        renderInstructions('chat');
+                    } else {
+                        buttonBoardMode.classList.add('active');
+                        renderInstructions('buttonBoard');
                     }
-                    
-                    console.log('연결 성공!');
-                    return true;
-                    
-                } catch (error) {
-                    console.error('연결 실패:', error);
-                    return false;
+                });
+            });
+
+            // 헤더 접기/펼치기
+            const headerToggleBtn = document.getElementById('headerToggleBtn');
+            const headerSettings = document.querySelector('.header-settings-bar');
+            const container = document.querySelector('.ble-interface .container');
+            function updateContainerPadding() {
+                const isClosed = headerSettings.classList.contains('closed');
+                const w = window.innerWidth;
+                let paddingTop;
+                if (w <= 480) {
+                    paddingTop = isClosed ? '50px' : '150px';
+                } else {
+                    paddingTop = isClosed ? '100px' : '250px';
                 }
+                if (container) container.style.paddingTop = paddingTop;
             }
-            
-            async disconnect() {
-                if (this.device && this.device.gatt.connected) {
-                    await this.device.gatt.disconnect();
+            headerToggleBtn.addEventListener('click', function() {
+                headerSettings.classList.toggle('closed');
+                this.classList.toggle('closed');
+                updateContainerPadding();
+            });
+            window.addEventListener('resize', updateContainerPadding);
+            headerSettings.style.display = 'flex';
+            document.querySelector('.mode-btn[data-mode="chat"]').click();
+            renderInstructions('chat');
+            setupInstructionsToggle();
+
+            // 디바이스 토글 및 초기 모드 설정
+            const deviceToggle = document.getElementById('deviceToggle');
+            function updateHeaderTitle(isESP32) {
+                const headerTitle = document.getElementById('headerTitle');
+                headerTitle.textContent = isESP32 ? '웹 블루투스 통신 (ESP32)' : '웹 블루투스 통신 (오렌지보드)';
+            }
+            let isESP32Mode = true;
+            deviceToggle.addEventListener('click', async function() {
+                isESP32Mode = !isESP32Mode;
+                deviceToggle.classList.toggle('active', isESP32Mode);
+                updateHeaderTitle(isESP32Mode);
+                document.body.classList.toggle('theme-esp32', isESP32Mode);
+                document.body.classList.toggle('theme-orange', !isESP32Mode);
+                const connectBtnText = document.getElementById('connectBtnText');
+                connectBtnText.textContent = isESP32Mode ? 'ESP32 연결' : '오렌지보드 연결';
+                // 모드 전환 시 연결되어 있으면 해제
+                if (window.bleConnection.isConnected()) {
+                    await window.bleConnection.disconnect();
                 }
-                this.isConnected = false;
-                if (this.onConnectionChanged) {
-                    this.onConnectionChanged(false);
+                window.bleConnection.setMode(isESP32Mode);
+            });
+            deviceToggle.classList.add('active');
+            updateHeaderTitle(true);
+            document.body.classList.add('theme-esp32');
+            if (container) {
+                const w = window.innerWidth;
+                container.style.paddingTop = w <= 480 ? '150px' : '250px';
+            }
+            window.bleConnection.setMode(true);
+
+            // 연결/해제 버튼
+            document.getElementById('connectBtn').addEventListener('click', async () => {
+                if (window.bleConnection.isConnected()) {
+                    await window.bleConnection.disconnect();
+                } else {
+                    if (!navigator.bluetooth) {
+                        alert('이 브라우저는 Web Bluetooth를 지원하지 않습니다. Chrome 브라우저를 사용해주세요.');
+                        return;
+                    }
+                    await window.bleConnection.connect();
                 }
-            }
-            
-            async sendMessage(message) {
-                if (!this.isConnected || !this.rxCharacteristic) {
-                    throw new Error('연결되지 않음');
+            });
+
+            // 채팅 입력/전송
+            const sendBtn = document.getElementById('sendBtn');
+            const messageInput = document.getElementById('messageInput');
+            sendBtn.addEventListener('click', async () => {
+                const text = messageInput.value.trim();
+                if (!text) return;
+                await window.bleConnection.sendMessage(text);
+                addMessage(text, 'sent');
+                messageInput.value = '';
+            });
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendBtn.click();
                 }
-                
-                const encoder = new TextEncoder();
-                const data = encoder.encode(message);
-                await this.rxCharacteristic.writeValue(data);
-            }
-        }
-        
-        // UI 요소들
-        const connectBtn = document.getElementById('connectBtn');
-        const disconnectBtn = document.getElementById('disconnectBtn');
-        const sendBtn = document.getElementById('sendBtn');
-        const messageInput = document.getElementById('messageInput');
-        const messagesDiv = document.getElementById('messages');
-        const statusDiv = document.getElementById('status');
-        const clearBtn = document.getElementById('clearBtn');
-        
-        // ESP32 Bluetooth 인스턴스 생성
-        const esp32 = new ESP32WebBluetooth();
-        
-        // 연결 상태 변경 시 호출
-        esp32.onConnectionChanged = (connected) => {
-            if (connected) {
-                statusDiv.textContent = '연결됨';
-                statusDiv.className = 'status connected';
-                connectBtn.disabled = true;
-                disconnectBtn.disabled = false;
-                sendBtn.disabled = false;
-                messageInput.disabled = false;
-            } else {
-                statusDiv.textContent = '연결 안됨';
-                statusDiv.className = 'status disconnected';
-                connectBtn.disabled = false;
-                disconnectBtn.disabled = true;
-                sendBtn.disabled = true;
-                messageInput.disabled = true;
-            }
-        };
-        
-        // 메시지 수신 시 호출
-        esp32.onMessageReceived = (message) => {
-            addMessage(message, 'received');
-        };
-        
-        // 메시지를 화면에 추가
-        function addMessage(message, type) {
-            const messageEl = document.createElement('div');
-            messageEl.className = `message ${type}`;
-            messageEl.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
-            messagesDiv.appendChild(messageEl);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-        
-        // 이벤트 리스너들
-        connectBtn.addEventListener('click', async () => {
-            const success = await esp32.connect();
-            if (!success) {
-                alert('연결에 실패했습니다. 다시 시도해주세요.');
-            }
+            });
+
+            // 수신 콜백
+            window.bleConnection.onReceive((text) => addMessage(text, 'received'));
         });
-        
-        disconnectBtn.addEventListener('click', async () => {
-            await esp32.disconnect();
-        });
-        
-        sendBtn.addEventListener('click', async () => {
-            const message = messageInput.value.trim();
-            if (message) {
-                try {
-                    await esp32.sendMessage(message);
-                    addMessage(message, 'sent');
-                    messageInput.value = '';
-                } catch (error) {
-                    alert('메시지 전송 실패: ' + error.message);
-                }
-            }
-        });
-        
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendBtn.click();
-            }
-        });
-        
-        clearBtn.addEventListener('click', () => {
-            messagesDiv.innerHTML = '';
-        });
-        
-        // Web Bluetooth API 지원 확인
-        if (!navigator.bluetooth) {
-            alert('이 브라우저는 Web Bluetooth를 지원하지 않습니다. Chrome 브라우저를 사용해주세요.');
-        }
     </script>
+    <script type="module" src="./button-grid.js"></script>
 </body>
 </html>

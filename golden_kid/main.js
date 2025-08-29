@@ -2,10 +2,38 @@
 
 // --- 기존 앱 스크립트 ---
 
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 // 페이지 로드 시 초기화 (암호 해제 후 실행되도록 이동)
 // document.addEventListener('DOMContentLoaded', function() {
 //     loadMemosFromStorage();
 // });
+
+document.addEventListener('DOMContentLoaded', function() {
+    const generated = document.getElementById('generatedTemplate');
+    if (generated) {
+        generated.addEventListener('copy', function(e) {
+            try {
+                const selection = window.getSelection ? window.getSelection().toString() : '';
+                const plainText = selection || generated.textContent || '';
+                const htmlText = `<div style="font-family:'Noto Sans KR', sans-serif; font-size:14px; color:#222; white-space:pre-wrap;">${escapeHtml(plainText)}</div>`;
+
+                if (e.clipboardData) {
+                    e.clipboardData.setData('text/plain', plainText);
+                    e.clipboardData.setData('text/html', htmlText);
+                    e.preventDefault();
+                }
+            } catch (_) {
+                /* noop: 호환되지 않는 환경에서는 기본 동작 유지 */
+            }
+        });
+    }
+});
 
 // 섹션 전환
 function showSection(index) {
@@ -18,11 +46,13 @@ function showSection(index) {
 // 템플릿 생성기
 function generateTemplate() {
     const subject = document.getElementById('genSubject').value;
-    const grade = document.getElementById('genGrade').value;
+    const rawGrade = document.getElementById('genGrade').value;
     const scope = document.getElementById('genScope').value;
     const tone = document.getElementById('genTone').value;
 
-    if (!subject || !grade || !scope || !tone) {
+    const grade = rawGrade || '초등학생';
+
+    if (!subject || !scope || !tone) {
         document.getElementById('generatedTemplate').textContent = '모든 필드를 입력해주세요.';
         return;
     }
@@ -60,9 +90,27 @@ function copyTemplate() {
         alert('먼저 템플릿을 생성해주세요.');
         return;
     }
-    navigator.clipboard.writeText(template).then(() => {
-        alert('템플릿이 클립보드에 복사되었습니다!');
-    });
+
+    const plainText = template;
+    const htmlText = `<div style="font-family:'Noto Sans KR', sans-serif; font-size:14px; color:#222; white-space:pre-wrap;">${escapeHtml(template)}</div>`;
+
+    if (navigator.clipboard && window.ClipboardItem) {
+        const clipboardData = {
+            'text/plain': new Blob([plainText], { type: 'text/plain' }),
+            'text/html': new Blob([htmlText], { type: 'text/html' })
+        };
+        navigator.clipboard.write([new ClipboardItem(clipboardData)]).then(() => {
+            alert('템플릿이 클립보드에 복사되었습니다!');
+        }).catch(() => {
+            navigator.clipboard.writeText(plainText).then(() => {
+                alert('템플릿이 클립보드에 복사되었습니다!');
+            });
+        });
+    } else {
+        navigator.clipboard.writeText(plainText).then(() => {
+            alert('템플릿이 클립보드에 복사되었습니다!');
+        });
+    }
 }
 
 function downloadTemplate() {
@@ -77,7 +125,7 @@ function downloadTemplate() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${subject}_챗봇_템플릿.txt`;
+    a.download = `${subject}_챗봇_프롬프트_템플릿.txt`;
     a.click();
     URL.revokeObjectURL(url);
 }
