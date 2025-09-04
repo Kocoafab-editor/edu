@@ -28,12 +28,12 @@
                 <!-- 1. MCU 토글 (왼쪽) -->
                 <div class="header-settings-col header-settings-left">
                     <div class="settings-title">디바이스 선택</div>
-                    <div class="toggle-container">
-                      <span class="toggle-label">오렌지보드</span>
-                      <div class="toggle-switch" id="deviceToggle">
-                        <div class="toggle-slider"></div>
-                      </div>
-                      <span class="toggle-label">ESP32</span>
+                    <div class="device-select-container">
+                        <select id="deviceSelect" class="device-select">
+                            <option value="esp32" selected>ESP32</option>
+                            <option value="orange">오렌지보드</option>
+                            <option value="microbit">마이크로비트</option>
+                        </select>
                     </div>
                 </div>
                 <!-- 2. 블루투스 연결 버튼 (가운데) -->
@@ -257,8 +257,10 @@
                     <div class="warning-banner">
                         <div class="warning-title">주의사항</div>
                         <ul>
-                            <li>이 페이지는 Web Bluetooth를 지원하는 데스크톱용 Chrome/Edge 브라우저에서 동작합니다.</li>
-                            <li>iPhone(iOS Safari)은 Web Bluetooth 미지원으로 사용할 수 없습니다.</li>
+                            <li>이 페이지는 Web Bluetooth를 지원하는 기기(PC/모바일)의 Chrome/Edge 브라우저에서 동작합니다.</li>
+                            <li>Android의 경우 <a href="https://play.google.com/store/apps/details?id=com.android.chrome&hl=ko" target="_blank">Chrome 브라우저</a>를 사용해주세요.</li>
+                            <li>iPhone(iOS Safari)은 Web Bluetooth를 지원하지 않습니다.
+                                사용을 위해 <a href="https://apps.apple.com/app/bluefy/id6462895808" target="_blank">Bluefy App</a>을 설치하세요.</li>
                             <li>PC의 블루투스 하드웨어와 드라이버가 정상 동작해야 합니다.</li>
                         </ul>
                     </div>
@@ -266,7 +268,7 @@
 
                 const steps = mode === 'chat'
                     ? [
-                        '상단 토글로 사용할 디바이스(오렌지보드/ESP32)를 선택합니다.',
+                        '상단 드롭다운에서 사용할 디바이스(오렌지보드/ESP32/마이크로비트)를 선택합니다.',
                         '블루투스 연결 버튼을 눌러 장치를 선택하고 연결합니다.',
                         '연결이 되면, 채팅 입력창에 전송할 메시지를 입력하고 “전송”을 클릭하거나 엔터키를 누릅니다.',
                         '상대 장치에서 보낸 메시지는 대화창에 실시간으로 표시됩니다.',
@@ -274,7 +276,7 @@
                         '디바이스를 연결 해제하려면 블루투스 연결 버튼을 다시 눌러 연결을 끊습니다.'
                     ]
                     : [
-                        '상단 토글로 사용할 디바이스(오렌지보드/ESP32)를 선택합니다.',
+                        '상단 드롭다운에서 사용할 디바이스(오렌지보드/ESP32/마이크로비트)를 선택합니다.',
                         '프리셋(숫자 패드/게임 패드) 또는 사용자 정의를 선택합니다.',
                         '사용자 정의일 경우 그리드 크기를 선택하고 “그리드 생성”을 클릭합니다.',
                         '“편집 모드”에서 각 버튼의 라벨/전송값/아이콘/색상을 설정하고 저장합니다.',
@@ -351,12 +353,12 @@
                 this.serviceUUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
                 this.txUUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
                 this.rxUUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
-                this.isESP32Mode = true;
+                this.deviceMode = 'esp32'; // 'esp32' | 'orange' | 'microbit'
                 this._onReceive = null;
             }
 
-            setMode(isESP32) {
-                this.isESP32Mode = isESP32;
+            setMode(mode) {
+                this.deviceMode = mode;
             }
 
             onReceive(cb) {
@@ -371,9 +373,14 @@
                 try {
                     this._updateStatusUI('연결 중...', 'connecting');
 
-                    const options = this.isESP32Mode
-                        ? { filters: [ { services: [ this.serviceUUID ] } ] }
-                        : { filters: [ { name: 'ARDUINO_NUS' }, { namePrefix: 'ARDUINO' } ], optionalServices: [ this.serviceUUID ] };
+                    let options;
+                    if (this.deviceMode === 'esp32') {
+                        options = { filters: [ { services: [ this.serviceUUID ] } ] };
+                    } else if (this.deviceMode === 'orange') {
+                        options = { filters: [ { name: 'ARDUINO_NUS' }, { namePrefix: 'ARDUINO' } ], optionalServices: [ this.serviceUUID ] };
+                    } else { // microbit
+                        options = { filters: [ { namePrefix: 'BBC micro:bit' }, { namePrefix: 'micro:bit' } ], optionalServices: [ this.serviceUUID ] };
+                    }
 
                     this.device = await navigator.bluetooth.requestDevice(options);
                     this.device.addEventListener('gattserverdisconnected', () => this._onDisconnected());
@@ -381,16 +388,31 @@
                     this.server = await this.device.gatt.connect();
                     this.service = await this.server.getPrimaryService(this.serviceUUID);
 
-                    this.txCharacteristic = await this.service.getCharacteristic(this.txUUID);
-                    this.rxCharacteristic = await this.service.getCharacteristic(this.rxUUID);
-
-                    // 알림 설정: ESP32는 TX(0x0002), 아두이노는 RX(0x0003)
-                    if (this.isESP32Mode) {
-                        await this.txCharacteristic.startNotifications();
+                    if (this.deviceMode === 'microbit') {
+                        const chars = await this.service.getCharacteristics();
+                        this.txCharacteristic = chars.find(c => {
+                            try { return c.properties.notify || c.properties.indicate; } catch { return false; }
+                        });
+                        this.rxCharacteristic = chars.find(c => {
+                            try { return c.properties.write || c.properties.writeWithoutResponse; } catch { return false; }
+                        });
+                        if (!this.txCharacteristic || !this.rxCharacteristic) {
+                            throw new Error('micro:bit 특성(TX/RX)을 찾을 수 없습니다.');
+                        }
+                        try { await this.txCharacteristic.startNotifications(); } catch(e1) { await new Promise(r=>setTimeout(r,120)); await this.txCharacteristic.startNotifications(); }
                         this.txCharacteristic.addEventListener('characteristicvaluechanged', (event) => this._handleNotify(event));
                     } else {
-                        await this.rxCharacteristic.startNotifications();
-                        this.rxCharacteristic.addEventListener('characteristicvaluechanged', (event) => this._handleNotify(event));
+                        this.txCharacteristic = await this.service.getCharacteristic(this.txUUID);
+                        this.rxCharacteristic = await this.service.getCharacteristic(this.rxUUID);
+                        // 알림 설정: ESP32는 TX(0x0002), 아두이노는 RX(0x0003)
+                        const isESP32 = this.deviceMode === 'esp32';
+                        if (isESP32) {
+                            await this.txCharacteristic.startNotifications();
+                            this.txCharacteristic.addEventListener('characteristicvaluechanged', (event) => this._handleNotify(event));
+                        } else {
+                            await this.rxCharacteristic.startNotifications();
+                            this.rxCharacteristic.addEventListener('characteristicvaluechanged', (event) => this._handleNotify(event));
+                        }
                     }
 
                     this._updateStatusUI('연결됨', 'connected');
@@ -407,10 +429,13 @@
                 try {
                     // 알림 해제
                     try {
-                        if (this.isESP32Mode && this.txCharacteristic) {
+                        if (this.deviceMode === 'microbit' && this.txCharacteristic) {
                             await this.txCharacteristic.stopNotifications();
                         }
-                        if (!this.isESP32Mode && this.rxCharacteristic) {
+                        if (this.deviceMode === 'esp32' && this.txCharacteristic) {
+                            await this.txCharacteristic.stopNotifications();
+                        }
+                        if (this.deviceMode === 'orange' && this.rxCharacteristic) {
                             await this.rxCharacteristic.stopNotifications();
                         }
                     } catch (e) {}
@@ -438,16 +463,35 @@
                 }
                 try {
                     const encoder = new TextEncoder();
-                    const data = encoder.encode(msg + '\n');
-                    // ESP32는 RX(0x0003)로 쓰기, 아두이노는 TX(0x0002)로 쓰기
-                    if (this.isESP32Mode) {
+                    const data = encoder.encode(msg + '\n'); // 모든 모드 개행 통일
+                    if (this.deviceMode === 'microbit') {
+                        await this._writeChunked(this.rxCharacteristic, data);
+                    } else if (this.deviceMode === 'esp32') {
                         await this.rxCharacteristic.writeValue(data);
-                    } else {
+                    } else { // orange (Arduino NUS)
                         await this.txCharacteristic.writeValue(data);
                     }
                 } catch (error) {
                     console.error('전송 실패:', error);
                     window.showNotification(`전송 실패: ${error.message}`, 'error');
+                }
+            }
+
+            async _writeChunked(characteristic, bytes) {
+                const CHUNK = 20;
+                for (let i = 0; i < bytes.length; i += CHUNK) {
+                    const slice = bytes.slice(i, i + CHUNK);
+                    try {
+                        if (characteristic.properties && characteristic.properties.write) {
+                            await characteristic.writeValue(slice);
+                        } else {
+                            await characteristic.writeValueWithoutResponse(slice);
+                        }
+                    } catch (e) {
+                        try { await characteristic.writeValueWithoutResponse(slice); }
+                        catch(e2) { await characteristic.writeValue(slice); }
+                    }
+                    await new Promise(r => setTimeout(r, 5));
                 }
             }
 
@@ -544,35 +588,44 @@
             renderInstructions('chat');
             setupInstructionsToggle();
 
-            // 디바이스 토글 및 초기 모드 설정
-            const deviceToggle = document.getElementById('deviceToggle');
-            function updateHeaderTitle(isESP32) {
+            // 디바이스 선택 드롭다운 및 초기 모드 설정
+            const deviceSelect = document.getElementById('deviceSelect');
+            const connectBtnTextEl = document.getElementById('connectBtnText');
+            function applyDeviceSelection(mode) {
                 const headerTitle = document.getElementById('headerTitle');
-                headerTitle.textContent = isESP32 ? '웹 블루투스 통신 (ESP32)' : '웹 블루투스 통신 (오렌지보드)';
-            }
-            let isESP32Mode = true;
-            deviceToggle.addEventListener('click', async function() {
-                isESP32Mode = !isESP32Mode;
-                deviceToggle.classList.toggle('active', isESP32Mode);
-                updateHeaderTitle(isESP32Mode);
-                document.body.classList.toggle('theme-esp32', isESP32Mode);
-                document.body.classList.toggle('theme-orange', !isESP32Mode);
-                const connectBtnText = document.getElementById('connectBtnText');
-                connectBtnText.textContent = isESP32Mode ? 'ESP32 연결' : '오렌지보드 연결';
-                // 모드 전환 시 연결되어 있으면 해제
-                if (window.bleConnection.isConnected()) {
-                    await window.bleConnection.disconnect();
+                const body = document.body;
+                body.classList.remove('theme-esp32', 'theme-orange', 'theme-microbit');
+                if (mode === 'esp32') {
+                    headerTitle.textContent = '웹 블루투스 통신 (ESP32)';
+                    body.classList.add('theme-esp32');
+                    if (connectBtnTextEl) connectBtnTextEl.textContent = 'ESP32 연결';
+                } else if (mode === 'orange') {
+                    headerTitle.textContent = '웹 블루투스 통신 (오렌지보드)';
+                    body.classList.add('theme-orange');
+                    if (connectBtnTextEl) connectBtnTextEl.textContent = '오렌지보드 연결';
+                } else {
+                    headerTitle.textContent = '웹 블루투스 통신 (마이크로비트)';
+                    body.classList.add('theme-microbit');
+                    if (connectBtnTextEl) connectBtnTextEl.textContent = '마이크로비트 연결';
                 }
-                window.bleConnection.setMode(isESP32Mode);
-            });
-            deviceToggle.classList.add('active');
-            updateHeaderTitle(true);
-            document.body.classList.add('theme-esp32');
+                window.bleConnection.setMode(mode);
+            }
+            if (deviceSelect) {
+                deviceSelect.addEventListener('change', async (e) => {
+                    const nextMode = e.target.value;
+                    // 연결 상태라면 전환 전에 해제
+                    if (window.bleConnection.isConnected()) {
+                        await window.bleConnection.disconnect();
+                    }
+                    applyDeviceSelection(nextMode);
+                });
+                // 초기값 적용
+                applyDeviceSelection(deviceSelect.value || 'esp32');
+            }
             if (container) {
                 const w = window.innerWidth;
                 container.style.paddingTop = w <= 480 ? '150px' : '250px';
             }
-            window.bleConnection.setMode(true);
 
             // 연결/해제 버튼
             document.getElementById('connectBtn').addEventListener('click', async () => {

@@ -1004,6 +1004,12 @@ body.theme-esp32 {
     --background-color: #764ba2;
 }
 
+/* micro:bit theme */
+body.theme-microbit {
+    --primary-color: #3454D1;
+    --background-color: #3454D1;
+}
+
 /* Apply theme color to key elements */
 .ble-interface .header h1 { color: var(--primary-color); }
 .back-btn { color: var(--primary-color); }
@@ -1017,6 +1023,23 @@ body.theme-esp32 {
 .btn-secondary:hover { filter: brightness(0.95); }
 .chat-header h3 { color: var(--primary-color); }
 .button-header h3 { color: var(--primary-color); }
+
+/* Device select dropdown */
+.device-select-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.device-select {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    min-width: 180px;
+    font-size: 1em;
+}
 
 /* Responsive font scaling */
 html { font-size: 16px; }
