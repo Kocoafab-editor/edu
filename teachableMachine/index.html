@@ -56,8 +56,14 @@
                   </div>
                   <!-- 3. 시리얼 연결 (오른쪽) -->
                   <div class="header-settings-col header-settings-right">
-                    <div class="settings-title">시리얼 통신 연결</div>
-                    <p class="serial-notice">연결이 끊기거나 모델이 바뀌면 다시 연결하세요.</p>
+                    <div class="settings-title">디바이스 연결</div>
+                    <div class="toggle-container">
+                      <span class="toggle-label">시리얼 통신</span>
+                      <div class="toggle-switch" id="connectionToggle">
+                        <div class="toggle-slider"></div>
+                      </div>
+                      <span class="toggle-label">블루투스</span>
+                    </div>
                     <button id="serialButton" class="btn">시리얼통신 연결</button>
                   </div>
                 </div>
@@ -111,14 +117,17 @@
                 </div>
 
                 <div class="instructions">
-                    <h3>📋 사용 방법</h3>
+                    <h3>📋 사용 방법 <span id="instructionsModeLabel"></span></h3>
                     <div id="instructionsContent">
                         <!-- Instructions will be rendered here by JavaScript -->
                     </div>
                 </div>
 
                 <div id="codeExamples" class="code-contents hidden">
-                    <h3>💻 사용 예시</h3>
+                    <h3>💻 사용 예시 <span id="exampleModeLabel"></span></h3>
+                    <div id="exampleNotice" class="hidden" style="margin: 8px 0 12px; font-weight: 400;">
+                        ❗ simpleBLE 라이브러리가 없으면 Thonny의 패키지 관리에서 kocoafab 라이브러리를 다시 설치해 주세요.
+                    </div>
                     <div class="code-examples">
                         <div class="example-tabs">
                             <button class="example-tab active" data-example="basic">기본 예시</button>
@@ -162,6 +171,7 @@
         const modelUrlInput = document.getElementById('modelUrlInput');
         const loadModelBtn = document.getElementById('loadModelBtn');
         const serialButton = document.getElementById('serialButton');
+        const connectionToggle = document.getElementById('connectionToggle');
         const headerTitle = document.getElementById('headerTitle');
         
         // 상태 업데이트 함수들
@@ -198,21 +208,50 @@
         // 디바이스 토글 이벤트
         // Function to render instructions based on current device
         function renderInstructions(isESP32) {
-            const instructions = isESP32 ? [
-                '헤더에서 사용할 디바이스(마이크로비트 또는 ESP32)를 선택하세요',
-                '티처블머신에서 학습한 모델의 URL을 입력하고 "모델 로드"를 클릭하세요',
-                'Thonny에서 ESP32용 시리얼 통신 코드를 작성하고 업로드하세요',
-                'Thonny 우측 하단 MicroPython(ESP32)를 Local Python 3로 변경하세요',
-                '현재 페이지의 "시리얼통신 연결" 버튼을 클릭하여 ESP32와 연결하세요',
-                '웹캠이 인식한 결과가 자동으로 ESP32로 전송됩니다',
-                '코드를 수정했다면, 반드시 "시리얼통신 연결"버튼을 다시 눌러 웹 브라우저와 연결을 끊고 Thonny로 업로드해 주세요'
-            ] : [
-                '헤더에서 사용할 디바이스(마이크로비트 또는 ESP32)를 선택하세요',
-                '티처블머신에서 학습한 모델의 URL을 입력하고 "모델 로드"를 클릭하세요',
-                '마이크로비트 에디터에서 시리얼 통신 코드를 작성하고 업로드하세요',
-                '현재 페이지의 "시리얼통신 연결" 버튼을 클릭하여 마이크로비트와 연결하세요',
-                '웹캠이 인식한 결과가 자동으로 마이크로비트로 전송됩니다'
-            ];
+            let instructions;
+            if (isESP32) {
+                // ESP32: 시리얼/블루투스 분기
+                if (window.isBluetoothMode) {
+                    instructions = [
+                        '헤더에서 디바이스를 ESP32로 설정하세요',
+                        '티처블머신 모델 URL을 입력하고 "모델 로드"를 클릭하세요',
+                        'Thonny에서 ESP32용 BLE 코드를 작성/업로드하세요',
+                        'Thonny에서 실행->인터프리터 환경설정에서<br>실행 환경(인터프리터 탭의 상단 드롭다운)을 Local Python3로 설정하세요',
+                        '상단 "연결" 버튼을 눌러 블루투스 연결을 진행하세요',
+                        '웹캠 인식 결과가 BLE로 ESP32에 전송됩니다',
+                        '코드 수정 시 연결을 끊고(연결 해제) 업로드 후 다시 연결하세요'
+                    ];
+                } else {
+                    instructions = [
+                        '헤더에서 디바이스를 ESP32로 설정하세요',
+                        '티처블머신 모델 URL을 입력하고 "모델 로드"를 클릭하세요',
+                        'Thonny에서 ESP32용 시리얼 통신 코드를 작성/업로드하세요',
+                        'Thonny에서 실행->인터프리터 환경설정에서<br>실행 환경(인터프리터 탭의 상단 드롭다운)을 Local Python3로 설정하세요',
+                        '상단 "연결" 버튼을 눌러 시리얼 연결을 진행하세요',
+                        '웹캠 인식 결과가 시리얼로 ESP32에 전송됩니다',
+                        '코드 수정 시 연결을 끊고(연결 해제) 업로드 후 다시 연결하세요'
+                    ];
+                }
+            } else {
+                // 마이크로비트: 시리얼/블루투스 분기
+                if (window.isBluetoothMode) {
+                    instructions = [
+                        '헤더에서 디바이스를 마이크로비트로 설정하세요',
+                        '티처블머신 모델 URL을 입력하고 "모델 로드"를 클릭하세요',
+                        '마이크로비트에 BLE 통신 프로그램을 업로드하세요',
+                        '상단 "연결" 버튼을 눌러 블루투스 연결을 진행하세요',
+                        '웹캠 인식 결과가 BLE로 마이크로비트에 전송됩니다'
+                    ];
+                } else {
+                    instructions = [
+                        '헤더에서 디바이스를 마이크로비트로 설정하세요',
+                        '티처블머신 모델 URL을 입력하고 "모델 로드"를 클릭하세요',
+                        '마이크로비트 에디터에서 시리얼 통신 코드를 작성/업로드하세요',
+                        '상단 "연결" 버튼을 눌러 시리얼 연결을 진행하세요',
+                        '웹캠 인식 결과가 시리얼로 마이크로비트에 전송됩니다'
+                    ];
+                }
+            }
 
             const instructionsHTML = `
                 <ol>
@@ -221,6 +260,12 @@
             `;
             
             document.getElementById('instructionsContent').innerHTML = instructionsHTML;
+
+            // 타이틀 모드 라벨 갱신
+            const instructionsModeLabel = document.getElementById('instructionsModeLabel');
+            if (instructionsModeLabel) {
+                instructionsModeLabel.textContent = window.isBluetoothMode ? '(블루투스)' : '(시리얼)';
+            }
 
             // Show/hide code examples based on device mode
             const codeExamples = document.getElementById('codeExamples');
@@ -237,14 +282,15 @@
 
 
         function initializeCodeExamples() {
-            // Example code content
+            // Example code content (mode-separated)
             const examples = {
-                basic: `# 티처블머신 데이터 출력하기
+                serial: {
+                    basic: `# 티처블머신 데이터 출력하기
 
 while True:
     data = input()
     print(data)`,
-                advanced: `# 스마트홈 모터 제어 예시
+                    advanced: `# 스마트홈 모터 제어 예시
 
 from servo import Servo
 
@@ -256,7 +302,7 @@ while(True):
         motor.move(90)
     elif data == 'Class 2':         # 티처블머신 레이블 이름에 맞게 변경 
         motor.move(30)`,
-                custom: `# 파이파이키트 네오픽셀 제어 예시
+                    custom: `# 파이파이키트 네오픽셀 제어 예시
 
 from machine import Pin
 from neopixel import NeoPixel
@@ -274,6 +320,88 @@ while(True):
         for i in range(0, 12):
             np[i] = (0, 0, 255)     # Class 2 레이블일 때 파란색 켜기
         np.write()`
+                },
+                bluetooth: {
+                    // 초기에는 시리얼 예시와 동일하게 구성 (추후 사용자 교체 예정)
+                    basic: `# 티처블머신 데이터 출력하기
+import ubluetooth
+from simpleBle import WebBLEPeripheral
+
+ble = ubluetooth.BLE()
+ble.active(True)
+
+p = WebBLEPeripheral(ble, "ESP32_BLE")
+
+
+def on_rx(v):
+    print("수신", v)
+    p.send(f"받은 메시지: {v}")
+
+print("연결 대기 중...")
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    p.stop()
+    `,
+                    advanced: `# 스마트홈 모터 제어 예시
+
+from servo import Servo
+import ubluetooth
+from simpleBle import WebBLEPeripheral
+
+ble = ubluetooth.BLE()
+ble.active(True)
+
+p = WebBLEPeripheral(ble, "ESP32_BLE")
+
+motor = Servo(pin=13)
+
+def on_rx(v):
+    if v == 'Class 1':           # 티처블머신 레이블 이름에 맞게 변경 
+        motor.move(90)
+    elif v == 'Class 2':         # 티처블머신 레이블 이름에 맞게 변경 
+        motor.move(30)
+        
+print("연결 대기 중...")
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    p.stop()`,
+                    custom: `# 파이파이키트 네오픽셀 제어 예시
+
+from machine import Pin
+from neopixel import NeoPixel
+import ubluetooth
+from simpleBle import WebBLEPeripheral
+
+pin = Pin(14, Pin.OUT)
+np = NeoPixel(pin, 12) 
+
+ble = ubluetooth.BLE()
+ble.active(True)
+
+p = WebBLEPeripheral(ble, "ESP32_BLE")
+
+
+def on_rx(v):
+    if v == 'Class 1':           # 티처블머신 레이블 이름에 맞게 변경 
+        for i in range(0, 12):
+            np[i] = (255, 255, 0)   # Class 1 레이블일 때 노란색 켜기
+        np.write()
+    elif v == 'Class 2':         # 티처블머신 레이블 이름에 맞게 변경 
+        for i in range(0, 12):
+            np[i] = (0, 0, 255)     # Class 2 레이블일 때 파란색 켜기
+        np.write()
+        
+print("연결 대기 중...")
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    p.stop()`,
+                }
             };
 
             // Function to update code content
@@ -281,10 +409,34 @@ while(True):
                 const exampleContent = document.querySelector('.example-content');
                 const codeElement = exampleContent.querySelector('code');
                 if (codeElement) {
-                    codeElement.textContent = examples[exampleType];
+                    const mode = window.isBluetoothMode ? 'bluetooth' : 'serial';
+                    const modeExamples = examples[mode] || examples.serial;
+                    codeElement.textContent = modeExamples[exampleType];
                     // Initialize Prism.js syntax highlighting
                     Prism.highlightElement(codeElement);
                 }
+            }
+
+            // Function to update example mode label (시리얼/블루투스)
+            function updateExampleModeLabel() {
+                const labelEl = document.getElementById('exampleModeLabel');
+                if (!labelEl) return;
+                labelEl.textContent = window.isBluetoothMode ? '(블루투스)' : '(시리얼)';
+            }
+
+            // Function to update code content for current active tab when mode changes
+            function updateExampleContentForMode() {
+                const activeTab = document.querySelector('.example-tab.active');
+                const currentType = activeTab ? activeTab.dataset.example : 'basic';
+                updateCodeContent(currentType);
+            }
+
+            // Function to toggle example notice (ESP32 + Bluetooth only)
+            function updateExampleNotice() {
+                const noticeEl = document.getElementById('exampleNotice');
+                if (!noticeEl) return;
+                const shouldShow = (window.currentDeviceMode === 'esp32') && !!window.isBluetoothMode;
+                noticeEl.classList.toggle('hidden', !shouldShow);
             }
 
             // 탭 클릭 이벤트 처리
@@ -306,6 +458,8 @@ while(True):
 
             // Initialize default content
             updateCodeContent('basic');
+            updateExampleModeLabel();
+            updateExampleNotice();
 
             // Copy button functionality
             const copyBtn = document.querySelector('.copy-btn');
@@ -336,6 +490,11 @@ while(True):
                         });
                 });
             }
+
+            // 공개: 외부에서 라벨 갱신 호출 가능
+            window.updateExampleModeLabel = updateExampleModeLabel;
+            window.updateExampleContentForMode = updateExampleContentForMode;
+            window.updateExampleNotice = updateExampleNotice;
         }
 
         deviceToggle.addEventListener('click', function() {
@@ -360,6 +519,22 @@ while(True):
             
             // 전역 변수로 현재 모드 설정
             window.currentDeviceMode = isESP32Mode ? 'esp32' : 'microbit';
+
+            // BLE 모드 동기화
+            try {
+                if (typeof bleManager !== 'undefined' && bleManager) {
+                    bleManager.setMode(isESP32Mode ? 'esp32' : 'microbit');
+                }
+            } catch (e) {
+                console.warn('BLE mode sync failed:', e);
+            }
+
+            // 테마 클래스 업데이트
+            try {
+                const bodyEl = document.body;
+                bodyEl.classList.remove('theme-esp32', 'theme-microbit');
+                bodyEl.classList.add(isESP32Mode ? 'theme-esp32' : 'theme-microbit');
+            } catch (e) {}
         });
 
         // 모델 로드 버튼 이벤트
@@ -374,11 +549,97 @@ while(True):
             });
         }
 
-        // 시리얼 연결 버튼 이벤트
+        // 연결 모드 상태
+        let isBluetoothMode = false;
+        // 외부(스케치)에서 접근 가능하도록 공개
+        window.isBluetoothMode = isBluetoothMode;
+
+        // 연결 토글 이벤트
+        if (connectionToggle) {
+            connectionToggle.addEventListener('click', function() {
+                isBluetoothMode = !isBluetoothMode;
+                connectionToggle.classList.toggle('active', isBluetoothMode);
+                if (serialButton) {
+                    serialButton.textContent = isBluetoothMode ? '연결' : '연결';
+                }
+                // 외부 노출 상태 동기화
+                window.isBluetoothMode = isBluetoothMode;
+
+                // BLE 모드로 전환되면 시리얼 포트를 닫아 전송 경로를 일관화
+                if (isBluetoothMode && typeof window.closeSerialPort === 'function') {
+                    window.closeSerialPort();
+                }
+
+                // 예시 라벨 갱신
+                if (typeof window.updateExampleModeLabel === 'function') {
+                    window.updateExampleModeLabel();
+                }
+                if (typeof window.updateExampleContentForMode === 'function') {
+                    window.updateExampleContentForMode();
+                }
+                if (typeof window.updateExampleNotice === 'function') {
+                    window.updateExampleNotice();
+                }
+
+                // 사용 방법(Instructions)도 현재 디바이스/모드에 맞춰 재렌더링
+                renderInstructions(isESP32Mode);
+            });
+        }
+
+        // BLE 매니저 인스턴스 (필요 시 생성)
+        let bleManager = null;
+
+        // 디바이스(연결) 버튼 이벤트
         if (serialButton) {
-            serialButton.addEventListener('click', function() {
-                if (window.newConnect) {
-                    window.newConnect();
+            serialButton.addEventListener('click', async function() {
+                if (isBluetoothMode) {
+                    try {
+                        if (!navigator.bluetooth) {
+                            alert('이 브라우저는 Web Bluetooth를 지원하지 않습니다. Chrome/Edge를 사용해주세요.');
+                            return;
+                        }
+                        if (!bleManager) {
+                            if (!window.BLE || !window.BLE.BLEManager) {
+                                alert('BLE 모듈 로드에 실패했습니다.');
+                                return;
+                            }
+                            bleManager = new window.BLE.BLEManager();
+                            // 디바이스 토글 상태에 맞춰 모드 설정
+                            bleManager.setMode(isESP32Mode ? 'esp32' : 'microbit');
+                            // 상태 변경 시 상단 상태 패널 업데이트
+                            bleManager.onStatusChange((text, status) => {
+                                const className = status === 'connected' ? 'status-ready' : (status === 'connecting' ? 'status-waiting' : 'status-disconnected');
+                                window.updateSerialStatus(text, className);
+                                // 버튼 라벨 통일: 연결 시 "연결 해제", 그 외 "연결"
+                                if (serialButton) {
+                                    if (status === 'connected') {
+                                        serialButton.textContent = '연결 해제';
+                                    } else if (status === 'connecting') {
+                                        serialButton.textContent = '연결 중...';
+                                    } else {
+                                        serialButton.textContent = '연결';
+                                    }
+                                }
+                            });
+                            // 외부(스케치)에서 접근 가능하도록 공개
+                            window.bleManager = bleManager;
+                        }
+
+                        if (bleManager.isConnected()) {
+                            await bleManager.disconnect();
+                            if (serialButton) serialButton.textContent = '연결';
+                        } else {
+                            await bleManager.connect();
+                            if (serialButton) serialButton.textContent = '연결 해제';
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        alert('블루투스 연결 실패: ' + (e && e.message ? e.message : String(e)));
+                    }
+                } else {
+                    if (window.newConnect) {
+                        window.newConnect();
+                    }
                 }
             });
         }
@@ -386,8 +647,13 @@ while(True):
         // 초기 상태 설정
         window.currentDeviceMode = 'microbit';
         updateHeaderTitle(false);
+        // 초기 테마 설정
+        try {
+            document.body.classList.add('theme-microbit');
+        } catch (e) {}
     </script>
     
+    <script src="../ble/ble.js"></script>
     <script src="sketch.js"></script>
 </body>
 </html>

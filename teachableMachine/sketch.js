@@ -216,39 +216,67 @@ async function gotResult(error, results) {
 }
 
 // 마지막으로 저장된 라벨을 전송하는 함수
-function sendLastLabel() {
-  if (lastLabelToSend !== null && serial && serial.isOpen()) {
-    const currentTime = millis();
-    
-    // 마지막 전송으로부터 일정 시간이 지났는지 확인
-    if (currentTime - lastSentTime >= MIN_TIME_BETWEEN_SENDS) {
-      serial.write(lastLabelToSend);
-      
-      // 디바이스 모드에 따라 다른 종료 문자 사용
-      if (window.currentDeviceMode === 'esp32') {
-        serial.write('\r\n');  // ESP32/Arduino용
-      } else {
-        serial.write('\n');    // Microbit용
-      }
-      
-      // 마지막 전송 시간 업데이트
+async function sendLastLabel() {
+  if (lastLabelToSend === null) {
+    sendScheduled = false;
+    return;
+  }
+
+  const currentTime = millis();
+  if (currentTime - lastSentTime < MIN_TIME_BETWEEN_SENDS) {
+    setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS - (currentTime - lastSentTime));
+    return;
+  }
+
+  // 블루투스 우선 전송 (블루투스 모드 + 연결됨)
+  try {
+    if (window.isBluetoothMode && window.bleManager && typeof window.bleManager.isConnected === 'function' && window.bleManager.isConnected()) {
+      await window.bleManager.sendMessage(lastLabelToSend);
       lastSentTime = currentTime;
-      
-      // 마지막으로 보낸 값과 현재 보낼 값이 같으면 전송 완료로 처리
-      // 다르면 다시 예약
       if (lastLabelToSend === prevLabel) {
         sendScheduled = false;
       } else {
         setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS);
       }
-    } else {
-      // 아직 시간이 지나지 않았으면 다시 시도
-      setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS - (currentTime - lastSentTime));
+      return;
     }
-  } else {
-    sendScheduled = false;
+  } catch (e) {
+    console.warn('BLE send failed:', e);
+  }
+
+  // 시리얼 전송 (연결되어 있을 때) - 오직 시리얼 모드에서만
+  if (!window.isBluetoothMode && serial && typeof serial.isOpen === 'function' && serial.isOpen()) {
+    serial.write(lastLabelToSend);
+    if (window.currentDeviceMode === 'esp32') {
+      serial.write('\r\n');
+    } else {
+      serial.write('\n');
+    }
+    lastSentTime = currentTime;
+    if (lastLabelToSend === prevLabel) {
+      sendScheduled = false;
+    } else {
+      setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS);
+    }
+    return;
+  }
+
+  // 전송 경로가 없으면 예약 종료
+  sendScheduled = false;
+}
+
+// 전역에서 시리얼 포트를 닫기 위한 함수 제공 (BLE 모드 진입 시 사용)
+async function closeSerialPort() {
+  try {
+    if (serial && typeof serial.isOpen === 'function' && serial.isOpen()) {
+      await serial.close();
+      window.updateSerialStatus("연결 안됨", "status-disconnected");
+    }
+  } catch (e) {
+    console.warn('closeSerialPort error:', e);
   }
 }
+window.closeSerialPort = closeSerialPort;
 
 // 시리얼 이벤트 핸들러들
 function onSerialErrorOccurred(eventSender, error) {
@@ -259,11 +287,19 @@ function onSerialErrorOccurred(eventSender, error) {
 function onSerialConnectionOpened(eventSender) {
   console.log("시리얼 포트 연결됨");
   window.updateSerialStatus("연결됨", "status-connected");
+  try {
+    const btn = document.getElementById('serialButton');
+    if (btn && !window.isBluetoothMode) btn.textContent = '연결 해제';
+  } catch (e) {}
 }
 
 function onSerialConnectionClosed(eventSender) {
   console.log("시리얼 포트 연결 종료");
   window.updateSerialStatus("연결 안됨", "status-disconnected");
+  try {
+    const btn = document.getElementById('serialButton');
+    if (btn && !window.isBluetoothMode) btn.textContent = '연결';
+  } catch (e) {}
 }
 
 function onSerialDataReceived(eventSender, newData) {

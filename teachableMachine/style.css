@@ -4,11 +4,32 @@
     box-sizing: border-box;
 }
 
+:root {
+    --primary-color: #764ba2;
+    --secondary-color: #764ba2;
+    --bg-start: #667eea;
+    --bg-end: #764ba2;
+}
+
+body.theme-esp32 {
+    --primary-color: #764ba2;
+    --secondary-color: #764ba2;
+    --bg-start: #667eea;
+    --bg-end: #764ba2;
+}
+
+body.theme-microbit {
+    --primary-color: #3454D1;
+    --secondary-color: #3454D1;
+    --bg-start: #3454D1;
+    --bg-end: #3454D1;
+}
+
 body {
     font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
     line-height: 1.6;
     color: #333;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-end) 100%);
     min-height: 100vh;
 }
 
@@ -47,7 +68,7 @@ body {
 .header h1 {
     font-size: 1.8em;
     font-weight: 800;
-    color: #764ba2;
+    color: var(--primary-color);
     margin-bottom: 8px;
     text-align: center;
 }
@@ -229,7 +250,7 @@ body {
 .toggle-switch {
     width: 60px;
     height: 32px;
-    background: #e2e8f0;
+    background: var(--primary-color);
     border-radius: 16px;
     position: relative;
     cursor: pointer;
@@ -347,14 +368,14 @@ body {
     position: relative;
     width: 60px;
     height: 30px;
-    background: #fb8720;
+    background: var(--primary-color);
     transition: background 0.3s;
     border-radius: 15px;
     cursor: pointer;
 }
 
 .toggle-switch.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-end) 100%);
 }
 
 .toggle-slider {
@@ -505,7 +526,7 @@ body {
 }
 
 .btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-end) 100%);
     color: white;
     border: none;
     padding: 12px 25px;
