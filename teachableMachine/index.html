@@ -11,11 +11,13 @@
     <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/makeabilitylab/p5js/_libraries/serial.js"></script>
     <link rel="stylesheet" href="../common/header.css">
+    <link rel="stylesheet" href="../common/navigation.css">
     <link rel="stylesheet" href="../common/template.css">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="../common/menu.js"></script>
 </head>
 
 <body class="serial-connection">
@@ -24,11 +26,12 @@
         <div class="header-content">
             <!-- 접기/펼치기 버튼 -->
             <button id="headerToggleBtn" class="btn-small header-toggle-btn" title="설정 접기/펼치기"></button>
-            <div class="desktop-only">
+            <div>
                 <!-- 기존 헤더 타이틀/설명 -->
                 <div class="header-title-desc">
                   <h1 id="headerTitle">마이크로비트와 티처블머신 연동하기</h1>
                   <p>웹캠을 통한 실시간 이미지 인식으로 마이크로비트/esp32 제어</p>
+                  <p class="mobile-hint" style="display:none; color:#4a5568; margin-top:6px;">우측 상단의 햄버거 버튼을 눌러 설정하세요.</p>
                 </div>
                 <div class="header-settings-bar">
                     <!-- 1. MCU 토글 + 에디터 버튼 (왼쪽) -->
@@ -68,27 +71,27 @@
                   </div>
                 </div>
             </div>
+            <!-- 모바일: 햄버거 버튼 & 오버레이 -->
+            <button class="hamburger-btn" id="hamburgerBtn" aria-label="메뉴 열기"><span></span><span></span><span></span></button>
+            <div class="nav-overlay" id="navOverlay">
+                <div class="nav-overlay-content">
+                    <div id="overlaySettingsMount"></div>
+                </div>
+            </div>
         </div>
       </div>
     </div>
 
     <div class="container">
         <div class="main-section">
-            <!-- 모바일 경고 메시지 -->
-            <div class="mobile-warning">
-                <div class="warning-content">
-                    <h3>📱 모바일 환경 안내</h3>
-                    <p>시리얼 통신을 통한 MCU 연결은 데스크톱 환경에서만 지원됩니다.<br>
-                    컴퓨터로 접속해 주세요.</p>
-                </div>
-            </div>
+
 
             <!-- 티처블머신 모델 설정 -->
             
 
-            <div class="content-section desktop-only">
+            <div class="content-section">
                 <div class="video-section">
-                    <div class="video-container">
+                    <div class="video-container" id="video-container">
                       <div class="canvas-wrapper" id="canvasContainer">
                         <!-- p5.js canvas will be inserted here -->
                       </div>
@@ -102,7 +105,7 @@
                             <span id="modelStatus" class="status-value status-waiting">대기중</span>
                         </div>
                         <div class="status-item">
-                            <span class="status-label">시리얼 연결:</span>
+                            <span class="status-label" id="connectionTypeLabel">시리얼 연결:</span>
                             <span id="serialStatus" class="status-value status-disconnected">연결 안됨</span>
                         </div>
                         <div class="status-item">
@@ -156,7 +159,11 @@
                 const isClosed = headerSettingsBar.classList.toggle('closed');
                 headerToggleBtn.classList.toggle('closed');
                 
-                // 컨테이너의 padding-top 값을 동적으로 변경
+                // 모바일에서는 헤더 높이가 고정이므로 패딩 조정하지 않음
+                const isMobile = window.matchMedia('(max-width: 900px)').matches;
+                if (isMobile) return;
+
+                // 컨테이너의 padding-top 값을 데스크톱에서만 변경
                 const container = document.querySelector('.serial-connection .container');
                 if (container) {
                     container.style.paddingTop = isClosed ? '180px' : '360px';
@@ -190,6 +197,13 @@
                 element.className = 'status-value ' + className;
             }
         };
+
+        // 연결 타입 라벨 업데이트 (시리얼/블루투스)
+        function updateConnectionTypeLabel() {
+            const labelEl = document.getElementById('connectionTypeLabel');
+            if (!labelEl) return;
+            labelEl.textContent = (window.isBluetoothMode ? '블루투스 연결:' : '시리얼 연결:');
+        }
         
         window.updateRecognitionResult = function(result) {
             const element = document.getElementById('recognitionResult');
@@ -213,7 +227,8 @@
                 // ESP32: 시리얼/블루투스 분기
                 if (window.isBluetoothMode) {
                     instructions = [
-                        '헤더에서 디바이스를 ESP32로 설정하세요',
+                        'Web Bluetooth를 지원하는 기기(PC/모바일)의 Chrome/Edge 브라우저에서 동작합니다.<br>  - Android의 경우 <a href="https://play.google.com/store/apps/details?id=com.android.chrome&hl=ko" target="_blank">Chrome 브라우저</a>를 사용해 주세요.<br>  - iPhone(iOS Safari)은 Web Bluetooth를 지원하지 않습니다. 사용을 위해 <a href="https://apps.apple.com/app/bluefy/id6462895808" target="_blank">Bluefy App</a>을 사용해 주세요.',
+                        '헤더에서 디바이스를 설정하세요',
                         '티처블머신 모델 URL을 입력하고 "모델 로드"를 클릭하세요',
                         'Thonny에서 ESP32용 BLE 코드를 작성/업로드하세요',
                         'Thonny에서 실행->인터프리터 환경설정에서<br>실행 환경(인터프리터 탭의 상단 드롭다운)을 Local Python3로 설정하세요',
@@ -223,7 +238,7 @@
                     ];
                 } else {
                     instructions = [
-                        '헤더에서 디바이스를 ESP32로 설정하세요',
+                        '헤더에서 디바이스를 설정하세요',
                         '티처블머신 모델 URL을 입력하고 "모델 로드"를 클릭하세요',
                         'Thonny에서 ESP32용 시리얼 통신 코드를 작성/업로드하세요',
                         'Thonny에서 실행->인터프리터 환경설정에서<br>실행 환경(인터프리터 탭의 상단 드롭다운)을 Local Python3로 설정하세요',
@@ -236,7 +251,8 @@
                 // 마이크로비트: 시리얼/블루투스 분기
                 if (window.isBluetoothMode) {
                     instructions = [
-                        '헤더에서 디바이스를 마이크로비트로 설정하세요',
+                        'Web Bluetooth를 지원하는 기기(PC/모바일)의 Chrome/Edge 브라우저에서 동작합니다.<br>  - Android의 경우 <a href="https://play.google.com/store/apps/details?id=com.android.chrome&hl=ko" target="_blank">Chrome 브라우저</a>를 사용해 주세요.<br>  - iPhone(iOS Safari)은 Web Bluetooth를 지원하지 않습니다. 사용을 위해 <a href="https://apps.apple.com/app/bluefy/id6462895808" target="_blank">Bluefy App</a>을 사용해 주세요.',
+                        '헤더에서 디바이스를 설정하세요',
                         '티처블머신 모델 URL을 입력하고 "모델 로드"를 클릭하세요',
                         '마이크로비트에 BLE 통신 프로그램을 업로드하세요',
                         '상단 "연결" 버튼을 눌러 블루투스 연결을 진행하세요',
@@ -244,7 +260,7 @@
                     ];
                 } else {
                     instructions = [
-                        '헤더에서 디바이스를 마이크로비트로 설정하세요',
+                        '헤더에서 디바이스를 설정하세요',
                         '티처블머신 모델 URL을 입력하고 "모델 로드"를 클릭하세요',
                         '마이크로비트 에디터에서 시리얼 통신 코드를 작성/업로드하세요',
                         '상단 "연결" 버튼을 눌러 시리얼 연결을 진행하세요',
@@ -279,6 +295,14 @@
 
         // Initial render
         renderInstructions(isESP32Mode);
+        // 초기에도 예시 공지와 라벨/내용을 현재 모드에 맞춰 동기화
+        try {
+            window.updateExampleModeLabel && window.updateExampleModeLabel();
+            window.updateExampleContentForMode && window.updateExampleContentForMode();
+            window.updateExampleNotice && window.updateExampleNotice();
+            updateConnectionTypeLabel();
+            if (serialButton) serialButton.textContent = (window.isBluetoothMode ? '블루투스 연결' : '시리얼통신 연결');
+        } catch (e) {}
 
 
         function initializeCodeExamples() {
@@ -330,7 +354,7 @@ from simpleBle import WebBLEPeripheral
 ble = ubluetooth.BLE()
 ble.active(True)
 
-p = WebBLEPeripheral(ble, "ESP32_BLE")
+p = WebBLEPeripheral(ble, "ESP32_BLE")  # 블루투스 연결 이름
 
 
 def on_rx(v):
@@ -353,7 +377,7 @@ from simpleBle import WebBLEPeripheral
 ble = ubluetooth.BLE()
 ble.active(True)
 
-p = WebBLEPeripheral(ble, "ESP32_BLE")
+p = WebBLEPeripheral(ble, "ESP32_BLE")  # 블루투스 연결 이름
 
 motor = Servo(pin=13)
 
@@ -382,7 +406,7 @@ np = NeoPixel(pin, 12)
 ble = ubluetooth.BLE()
 ble.active(True)
 
-p = WebBLEPeripheral(ble, "ESP32_BLE")
+p = WebBLEPeripheral(ble, "ESP32_BLE")  # 블루투스 연결 이름
 
 
 def on_rx(v):
@@ -500,6 +524,8 @@ except KeyboardInterrupt:
         deviceToggle.addEventListener('click', function() {
             isESP32Mode = !isESP32Mode;
             deviceToggle.classList.toggle('active', isESP32Mode);
+            // 전역 변수로 현재 모드 먼저 설정 (예시 노출 로직이 이 값에 의존)
+            window.currentDeviceMode = isESP32Mode ? 'esp32' : 'microbit';
             
             // Update instructions
             renderInstructions(isESP32Mode);
@@ -516,9 +542,14 @@ except KeyboardInterrupt:
             
             // 헤더 제목 업데이트
             updateHeaderTitle(isESP32Mode);
-            
-            // 전역 변수로 현재 모드 설정
-            window.currentDeviceMode = isESP32Mode ? 'esp32' : 'microbit';
+
+            // 예시 라벨/콘텐츠/공지 즉시 동기화
+            try {
+                if (typeof window.updateExampleModeLabel === 'function') window.updateExampleModeLabel();
+                if (typeof window.updateExampleContentForMode === 'function') window.updateExampleContentForMode();
+                if (typeof window.updateExampleNotice === 'function') window.updateExampleNotice();
+                updateConnectionTypeLabel();
+            } catch (e) {}
 
             // BLE 모드 동기화
             try {
@@ -549,18 +580,70 @@ except KeyboardInterrupt:
             });
         }
 
-        // 연결 모드 상태
+        // 환경 감지 유틸 (모바일/태블릿 식별)
+        function isIPadOSDesktopClass() {
+            try {
+                return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+            } catch (e) { return false; }
+        }
+        function detectMobileDevice() {
+            const ua = (navigator.userAgent || navigator.vendor || '');
+            const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet|Silk|Kindle/i.test(ua);
+            return isMobileUA || isIPadOSDesktopClass();
+        }
+
+        // 연결 모드 상태 (모바일 우선 적용을 위해 먼저 선언)
         let isBluetoothMode = false;
         // 외부(스케치)에서 접근 가능하도록 공개
         window.isBluetoothMode = isBluetoothMode;
 
+        // 환경 감지 적용: 모바일/태블릿이면 시리얼 제한, 블루투스 강제
+        const isMobileDevice = detectMobileDevice();
+        window.isMobileDevice = isMobileDevice;
+
+        if (isMobileDevice) {
+            // 강제 BLE 모드
+            isBluetoothMode = true;
+            window.isBluetoothMode = true;
+            if (connectionToggle) {
+                connectionToggle.classList.add('active');
+                connectionToggle.classList.add('locked');
+                connectionToggle.title = '모바일에서는 블루투스만 지원됩니다';
+                connectionToggle.style.pointerEvents = 'none';
+            }
+            // 토글 라벨을 블루투스 기준으로 보이게 업데이트
+            try {
+                const labels = connectionToggle?.parentElement?.querySelectorAll('.toggle-label');
+                if (labels && labels.length === 2) {
+                    labels[0].style.opacity = '0.4';
+                    labels[1].style.opacity = '1';
+                }
+            } catch (e) {}
+            if (serialButton) {
+                serialButton.textContent = '블루투스 연결';
+            }
+            if (typeof window.closeSerialPort === 'function') {
+                try { window.closeSerialPort(); } catch (e) {}
+            }
+            // UI 동기화
+            renderInstructions(isESP32Mode);
+            if (typeof window.updateExampleModeLabel === 'function') window.updateExampleModeLabel();
+            if (typeof window.updateExampleContentForMode === 'function') window.updateExampleContentForMode();
+            if (typeof window.updateExampleNotice === 'function') window.updateExampleNotice();
+            updateConnectionTypeLabel();
+        }
+
         // 연결 토글 이벤트
         if (connectionToggle) {
             connectionToggle.addEventListener('click', function() {
+                if (window.isMobileDevice) {
+                    alert('모바일에서는 블루투스만 지원됩니다.');
+                    return;
+                }
                 isBluetoothMode = !isBluetoothMode;
                 connectionToggle.classList.toggle('active', isBluetoothMode);
                 if (serialButton) {
-                    serialButton.textContent = isBluetoothMode ? '연결' : '연결';
+                    serialButton.textContent = isBluetoothMode ? '블루투스 연결' : '시리얼통신 연결';
                 }
                 // 외부 노출 상태 동기화
                 window.isBluetoothMode = isBluetoothMode;
@@ -571,15 +654,12 @@ except KeyboardInterrupt:
                 }
 
                 // 예시 라벨 갱신
-                if (typeof window.updateExampleModeLabel === 'function') {
-                    window.updateExampleModeLabel();
-                }
-                if (typeof window.updateExampleContentForMode === 'function') {
-                    window.updateExampleContentForMode();
-                }
-                if (typeof window.updateExampleNotice === 'function') {
-                    window.updateExampleNotice();
-                }
+                try {
+                    if (typeof window.updateExampleModeLabel === 'function') window.updateExampleModeLabel();
+                    if (typeof window.updateExampleContentForMode === 'function') window.updateExampleContentForMode();
+                    if (typeof window.updateExampleNotice === 'function') window.updateExampleNotice();
+                    updateConnectionTypeLabel();
+                } catch (e) {}
 
                 // 사용 방법(Instructions)도 현재 디바이스/모드에 맞춰 재렌더링
                 renderInstructions(isESP32Mode);
@@ -610,14 +690,14 @@ except KeyboardInterrupt:
                             bleManager.onStatusChange((text, status) => {
                                 const className = status === 'connected' ? 'status-ready' : (status === 'connecting' ? 'status-waiting' : 'status-disconnected');
                                 window.updateSerialStatus(text, className);
-                                // 버튼 라벨 통일: 연결 시 "연결 해제", 그 외 "연결"
+                                // 버튼 라벨: BLE 연결 시 "연결 해제", 해제 시 "블루투스 연결"
                                 if (serialButton) {
                                     if (status === 'connected') {
                                         serialButton.textContent = '연결 해제';
                                     } else if (status === 'connecting') {
                                         serialButton.textContent = '연결 중...';
                                     } else {
-                                        serialButton.textContent = '연결';
+                                        serialButton.textContent = '블루투스 연결';
                                     }
                                 }
                             });
@@ -637,6 +717,10 @@ except KeyboardInterrupt:
                         alert('블루투스 연결 실패: ' + (e && e.message ? e.message : String(e)));
                     }
                 } else {
+                    if (window.isMobileDevice) {
+                        alert('모바일에서는 시리얼 연결을 사용할 수 없습니다. 블루투스를 이용하세요.');
+                        return;
+                    }
                     if (window.newConnect) {
                         window.newConnect();
                     }
@@ -655,5 +739,75 @@ except KeyboardInterrupt:
     
     <script src="../ble/ble.js"></script>
     <script src="sketch.js"></script>
+    <script>
+        // 반응형: 설정 바를 오버레이로 이동/복귀
+        (function() {
+            const settingsBar = document.querySelector('.header-settings-bar');
+            const overlayMount = document.getElementById('overlaySettingsMount');
+            const mobileHint = document.querySelector('.mobile-hint');
+            const headerToggleBtnEl = document.getElementById('headerToggleBtn');
+            const headerEl = document.querySelector('.header');
+            const containerEl = document.querySelector('.serial-connection .container');
+            let placeholder = null;
+
+            function isMobileWidth() {
+                return window.matchMedia('(max-width: 900px)').matches;
+            }
+
+            function moveToOverlay() {
+                if (!settingsBar || !overlayMount) return;
+                if (!placeholder) {
+                    placeholder = document.createElement('div');
+                    placeholder.id = 'headerSettingsPlaceholder';
+                    settingsBar.parentNode.insertBefore(placeholder, settingsBar);
+                }
+                overlayMount.appendChild(settingsBar);
+                if (mobileHint) mobileHint.style.display = 'block';
+                if (headerToggleBtnEl) headerToggleBtnEl.style.display = 'none';
+            }
+
+            function moveToDesktop() {
+                if (!settingsBar || !placeholder || !placeholder.parentNode) return;
+                placeholder.parentNode.insertBefore(settingsBar, placeholder);
+                placeholder.remove();
+                placeholder = null;
+                if (mobileHint) mobileHint.style.display = 'none';
+                if (headerToggleBtnEl) headerToggleBtnEl.style.display = '';
+            }
+
+            function applyLayout() {
+                if (isMobileWidth()) {
+                    // 오버레이가 열려있으면 설정 바는 이미 오버레이에 있어야 함
+                    moveToOverlay();
+                    // 모바일에서 컨테이너 상단 여백: 헤더 높이 + 30px
+                    if (headerEl && containerEl) {
+                        const headerRect = headerEl.getBoundingClientRect();
+                        const topPadding = Math.max(0, headerRect.height + 30);
+                        containerEl.style.paddingTop = topPadding + 'px';
+                    }
+                } else {
+                    moveToDesktop();
+                    // 오버레이가 열려 있다면 닫기
+                    const overlay = document.getElementById('navOverlay');
+                    const btn = document.getElementById('hamburgerBtn');
+                    if (overlay && overlay.classList.contains('open')) {
+                        overlay.classList.remove('open');
+                        if (btn) btn.classList.remove('open');
+                        document.body.style.overflow = '';
+                    }
+                    // 데스크톱 기본 패딩 복귀
+                    if (containerEl) {
+                        containerEl.style.paddingTop = '360px';
+                    }
+                }
+            }
+
+            window.addEventListener('resize', applyLayout);
+            window.addEventListener('orientationchange', applyLayout);
+            document.addEventListener('DOMContentLoaded', applyLayout);
+            // 초기 적용 (DOMContentLoaded 이전 실행 대비)
+            applyLayout();
+        })();
+    </script>
 </body>
 </html>

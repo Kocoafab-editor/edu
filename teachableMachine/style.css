@@ -77,6 +77,7 @@ body {
     color: #4a5568;
     font-size: 1.1em;
     text-align: center;
+    margin-bottom: 10px;
 }
 
 /* 헤더 컨트롤 영역 */
@@ -198,9 +199,7 @@ body {
         top: 3px;
         left: 3px;
     }
-    .header-settings-bar .toggle-label {
-        font-size: 0.7em;
-    }
+    
 }
 
 .header-settings-col {
@@ -670,6 +669,25 @@ body {
     text-align: center;
 }
 
+/* 반응형 비디오 컨테이너: 비율 유지 */
+#video-container .canvas-wrapper,
+#video-container canvas {
+    max-width: 100%;
+    height: auto !important;
+}
+
+@media (max-width: 900px) {
+    .video-section {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    #video-container {
+        width: 100%;
+    }
+}
+
 .video-title {
     font-weight: bold;
     color: #4a5568;
@@ -812,7 +830,15 @@ body {
 
 @media (max-width: 480px) {
     .header-content {
-        padding: 20px 15px;
+        padding: 40px 20px 10px;
+    }
+
+    .header h1 {
+        font-size: 1.2em;
+    }
+
+    .header p {
+        font-size: 0.8em;
     }
 
     .main-section {
@@ -842,5 +868,65 @@ body {
 
     .toggle-switch.active .toggle-slider {
         transform: translateX(25px);
+    }
+
+    .hamburger-btn {
+        top: 10px;
+        right: 10px;
+    }
+}
+
+/* 오버레이에서 설정 바 세로 배치 및 상단 여백 (햄버거 오픈 시) */
+.nav-overlay.open #overlaySettingsMount {
+    width: 70%;
+    max-width: 900px;
+    padding: 0 16px;
+    margin: 88px auto 0 auto; /* 닫기(X)/햄버거 영역과 간격 확보 */
+}
+.nav-overlay.open .header-settings-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    max-width: 680px;
+    margin: 0 auto 24px auto;
+    padding-bottom: 24px;
+}
+.nav-overlay.open .header-settings-bar .header-settings-col {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+}
+
+/* 오버레이 내부 버튼 폭 조정 (데스크톱/태블릿) */
+.nav-overlay.open .header-settings-bar .header-settings-left .btn,
+.nav-overlay.open .header-settings-bar .header-settings-center .btn,
+.nav-overlay.open .header-settings-bar .header-settings-right .btn {
+    width: 70%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* 폭이 매우 좁은 모바일에서는 100% */
+@media (max-width: 480px) {
+    .nav-overlay.open #overlaySettingsMount {
+        width: 100%;
+        padding: 0 12px;
+        margin-top: 25px;
+    }
+    .nav-overlay.open .header-settings-bar {
+        max-width: none;
+    }
+    .nav-overlay.open .header-settings-bar .header-settings-left .btn,
+    .nav-overlay.open .header-settings-bar .header-settings-center .btn,
+    .nav-overlay.open .header-settings-bar .header-settings-right .btn {
+        width: 100%;
+    }
+}
+
+/* 모바일 폭에서는 헤더 높이가 고정이므로 상단 패딩 제거 */
+@media (max-width: 900px) {
+    .serial-connection .container {
+        padding-top: 200px !important;
     }
 }

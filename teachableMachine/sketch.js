@@ -83,14 +83,16 @@ function setup() {
 
 function videoReady_callback() {
   // 카메라의 실제 해상도 가져오기 (원본 해상도 유지)
-  let videoWidth = video.width;
-  let videoHeight = video.height;
+  let videoWidth = (video && video.elt && video.elt.videoWidth) ? video.elt.videoWidth : video.width;
+  let videoHeight = (video && video.elt && video.elt.videoHeight) ? video.elt.videoHeight : video.height;
   
   // 원본 해상도 로깅 (디버깅용)
   console.log(`카메라 원본 해상도: ${videoWidth}x${videoHeight}`);
   
-  // 비디오 크기를 원본 해상도로 설정 (크롭을 위해)
-  video.size(videoWidth, videoHeight);
+  // 비디오 크기를 원본 해상도로 설정 (0 방지)
+  if (videoWidth > 0 && videoHeight > 0) {
+    video.size(videoWidth, videoHeight);
+  }
   
   videoReady = true;
   // 모델이 이미 로드되어 있다면 분류 시작
@@ -136,48 +138,42 @@ function draw() {
 
 // 비디오를 그리는 헬퍼 함수 (항상 좌우 반전)
 function drawVideo(vid) {
-  let srcAspect = vid.width / vid.height;
-  let dstAspect = DISPLAY_WIDTH / DISPLAY_HEIGHT;
-  
-  // 소스 비디오의 크기 계산 (크롭을 위해)
-  let sx, sy, sw, sh;
-  
-  if (srcAspect > dstAspect) {
-    // 비디오가 더 넓은 경우: 좌우를 자름
-    sw = vid.height * dstAspect;
-    sh = vid.height;
-    sx = (vid.width - sw) / 2;
-    sy = 0;
-  } else {
-    // 비디오가 더 높은 경우: 상하를 자름
-    sw = vid.width;
-    sh = vid.width / dstAspect;
-    sx = 0;
-    sy = (vid.height - sh) / 2;
-  }
-  
-  // 캔버스에 그리기 (항상 좌우 반전)
+  // 원본 비율 유지하여 DISPLAY 영역에 맞추는 contain 스케일
+  const srcW = (vid && vid.elt && vid.elt.videoWidth) ? vid.elt.videoWidth : vid.width;
+  const srcH = (vid && vid.elt && vid.elt.videoHeight) ? vid.elt.videoHeight : vid.height;
+  const fitScale = Math.min(DISPLAY_WIDTH / srcW, DISPLAY_HEIGHT / srcH);
+  const drawW = srcW * fitScale;
+  const drawH = srcH * fitScale;
+  const dx = (DISPLAY_WIDTH - drawW) / 2; // 좌우 여백(필러박스)
+  const dy = (DISPLAY_HEIGHT - drawH) / 2; // 상하 여백(레터박스)
+
+  // 비디오 그리기 (좌우 반전)
   push();
-  // 좌우 반전 (거울 모드)
   translate(width, 0);
   scale(-1, 1);
-  
-  // 크롭된 영역을 캔버스에 맞게 확대/축소하여 그림
-  image(vid, 
-    (width - DISPLAY_WIDTH) / 2, 
-    0, 
-    DISPLAY_WIDTH, 
-    DISPLAY_HEIGHT,
-    sx, sy, sw, sh
-  );
-  
+  image(vid, dx, dy, drawW, drawH, 0, 0, srcW, srcH);
   pop();
+
+  // 레터박스/필러박스 영역 채우기 (검정)
+  noStroke();
+  fill(0);
+  const topBarH = Math.max(0, dy);
+  const bottomBarH = Math.max(0, DISPLAY_HEIGHT - (dy + drawH));
+  const leftBarW = Math.max(0, dx);
+  const rightBarW = Math.max(0, DISPLAY_WIDTH - (dx + drawW));
+
+  // 상/하 바
+  if (topBarH > 0) rect(0, 0, DISPLAY_WIDTH, topBarH);
+  if (bottomBarH > 0) rect(0, dy + drawH, DISPLAY_WIDTH, bottomBarH);
+  // 좌/우 바
+  if (leftBarW > 0) rect(0, 0, leftBarW, DISPLAY_HEIGHT);
+  if (rightBarW > 0) rect(dx + drawW, 0, rightBarW, DISPLAY_HEIGHT);
 }
 
 function classifyVideo() {
   if (!video || !classifier || !videoReady) return;
   
-  // 원본 비디오에서 크롭된 영역만 분류에 사용
+  // 원본 비디오 전체 프레임(좌우반전)으로 분류
   flippedVideo = ml5.flipImage(video);
   classifier.classify(flippedVideo, gotResult);
   flippedVideo.remove();
