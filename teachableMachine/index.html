@@ -748,6 +748,7 @@ except KeyboardInterrupt:
             const headerToggleBtnEl = document.getElementById('headerToggleBtn');
             const headerEl = document.querySelector('.header');
             const containerEl = document.querySelector('.serial-connection .container');
+            let previousDesktopCollapsed = false;
             let placeholder = null;
 
             function isMobileWidth() {
@@ -756,10 +757,21 @@ except KeyboardInterrupt:
 
             function moveToOverlay() {
                 if (!settingsBar || !overlayMount) return;
+                // 이미 오버레이에 있으면 재-append하여 포커스가 풀리지 않도록 조기 종료
+                if (settingsBar.parentNode === overlayMount) {
+                    if (mobileHint) mobileHint.style.display = 'block';
+                    if (headerToggleBtnEl) headerToggleBtnEl.style.display = 'none';
+                    return;
+                }
+                // 데스크톱 접힘 상태 저장 후 모바일에서는 항상 펼침
+                previousDesktopCollapsed = settingsBar.classList.contains('closed');
+                settingsBar.classList.remove('closed');
                 if (!placeholder) {
                     placeholder = document.createElement('div');
                     placeholder.id = 'headerSettingsPlaceholder';
-                    settingsBar.parentNode.insertBefore(placeholder, settingsBar);
+                    if (settingsBar.parentNode) {
+                        settingsBar.parentNode.insertBefore(placeholder, settingsBar);
+                    }
                 }
                 overlayMount.appendChild(settingsBar);
                 if (mobileHint) mobileHint.style.display = 'block';
@@ -768,11 +780,24 @@ except KeyboardInterrupt:
 
             function moveToDesktop() {
                 if (!settingsBar || !placeholder || !placeholder.parentNode) return;
-                placeholder.parentNode.insertBefore(settingsBar, placeholder);
+                // 이미 placeholder 바로 앞에 있으면 불필요한 재배치를 하지 않음
+                if (settingsBar.previousSibling !== placeholder) {
+                    placeholder.parentNode.insertBefore(settingsBar, placeholder);
+                }
                 placeholder.remove();
                 placeholder = null;
                 if (mobileHint) mobileHint.style.display = 'none';
                 if (headerToggleBtnEl) headerToggleBtnEl.style.display = '';
+                // 데스크톱으로 복귀 시 이전 접힘 상태 복원 및 패딩 반영
+                if (previousDesktopCollapsed) {
+                    settingsBar.classList.add('closed');
+                    if (headerToggleBtnEl) headerToggleBtnEl.classList.add('closed');
+                    if (containerEl) containerEl.style.paddingTop = '180px';
+                } else {
+                    settingsBar.classList.remove('closed');
+                    if (headerToggleBtnEl) headerToggleBtnEl.classList.remove('closed');
+                    if (containerEl) containerEl.style.paddingTop = '360px';
+                }
             }
 
             function applyLayout() {
@@ -795,14 +820,22 @@ except KeyboardInterrupt:
                         if (btn) btn.classList.remove('open');
                         document.body.style.overflow = '';
                     }
-                    // 데스크톱 기본 패딩 복귀
-                    if (containerEl) {
-                        containerEl.style.paddingTop = '360px';
+                    // 데스크톱 패딩은 접힘 상태에 맞춰 반영
+                    if (containerEl && settingsBar) {
+                        const isClosed = settingsBar.classList.contains('closed');
+                        containerEl.style.paddingTop = isClosed ? '180px' : '360px';
                     }
                 }
             }
 
             window.addEventListener('resize', applyLayout);
+            // 모바일 키보드 표시로 발생하는 잦은 resize에서 DOM 재배치를 방지하기 위해 rAF 디바운스
+            let _resizeRaf = null;
+            window.removeEventListener && window.removeEventListener('resize', applyLayout);
+            window.addEventListener('resize', function() {
+                if (_resizeRaf) cancelAnimationFrame(_resizeRaf);
+                _resizeRaf = requestAnimationFrame(applyLayout);
+            });
             window.addEventListener('orientationchange', applyLayout);
             document.addEventListener('DOMContentLoaded', applyLayout);
             // 초기 적용 (DOMContentLoaded 이전 실행 대비)

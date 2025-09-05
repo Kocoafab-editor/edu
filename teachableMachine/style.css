@@ -925,8 +925,4 @@ body {
 }
 
 /* 모바일 폭에서는 헤더 높이가 고정이므로 상단 패딩 제거 */
-@media (max-width: 900px) {
-    .serial-connection .container {
-        padding-top: 200px !important;
-    }
-}
+/* 모바일 상단 패딩은 JS에서 헤더 높이 기반으로 계산 적용 */
