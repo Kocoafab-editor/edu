@@ -8,10 +8,11 @@ let video;
 let flippedVideo;
 let label;
 let prevLabel;
-let serialOptions = { baudRate: 115200 };
-let serial;
 let videoReady = false;
 let canvasCreated = false;
+
+let sendTimerId = null;
+let prevSentLabel = null; 
 
 // Rate limiting variables
 let lastSentTime = 0;
@@ -54,15 +55,6 @@ async function loadAndStartModel() {
 }
 
 function setup() {
-  // 시리얼 포트 초기화
-  serial = new Serial();
-  serial.on(SerialEvents.CONNECTION_OPENED, onSerialConnectionOpened);
-  serial.on(SerialEvents.CONNECTION_CLOSED, onSerialConnectionClosed);
-  serial.on(SerialEvents.DATA_RECEIVED, onSerialDataReceived);
-  serial.on(SerialEvents.ERROR_OCCURRED, onSerialErrorOccurred);
-  
-  // 최초 자동 연결 시도
-  serial.autoConnectAndOpenPreviouslyApprovedPort(serialOptions);
   
   // 캔버스를 특정 컨테이너에 생성 (고정된 크기로 생성)
   let canvas = createCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT + 20); // +20 for status text
@@ -78,7 +70,6 @@ function setup() {
   
   // 초기 상태 메시지
   window.updateModelStatus("모델 URL을 입력하세요", "status-waiting");
-  window.updateSerialStatus("연결 안됨", "status-disconnected");
 }
 
 function videoReady_callback() {
@@ -189,18 +180,17 @@ async function gotResult(error, results) {
     label = results[0].label;
     
     // 결과가 변경되었을 때만 처리
-    if (label !== prevLabel) {
-      
-      // HTML 상태 업데이트
+    if (label && label !== window.currentLabel) {
       window.updateRecognitionResult(label);
-      
-      // 마지막으로 보낼 값 업데이트
+      window.currentLabel = label;
+
+      // 마지막 전송 후보 갱신
       lastLabelToSend = label;
-      
-      // 아직 전송이 예약되지 않았으면 예약
+
+      // 이미 예약되어 있으면 새 타이머를 만들지 않음(후행 1회 전송)
       if (!sendScheduled) {
         sendScheduled = true;
-        setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS);
+        sendTimerId = setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS);
       }
     }
     
@@ -213,134 +203,24 @@ async function gotResult(error, results) {
 
 // 마지막으로 저장된 라벨을 전송하는 함수
 async function sendLastLabel() {
-  if (lastLabelToSend === null) {
+  try {
+    if (!window.connectionManager) return;
+    if (lastLabelToSend == null) return;
+
+    // (선택) 직전 전송값과 동일하면 굳이 보내지 않음
+    if (lastLabelToSend === prevSentLabel) return;
+
+    await window.connectionManager.send(lastLabelToSend);
+    prevSentLabel = lastLabelToSend;
+  } catch (e) {
+    console.error('[sendLastLabel] failed:', e);
+  } finally {
+    // 타이머/플래그 초기화 (후행 전송)
     sendScheduled = false;
-    return;
-  }
-
-  const currentTime = millis();
-  if (currentTime - lastSentTime < MIN_TIME_BETWEEN_SENDS) {
-    setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS - (currentTime - lastSentTime));
-    return;
-  }
-
-  // 블루투스 우선 전송 (블루투스 모드 + 연결됨)
-  try {
-    if (window.isBluetoothMode && window.bleManager && typeof window.bleManager.isConnected === 'function' && window.bleManager.isConnected()) {
-      await window.bleManager.sendMessage(lastLabelToSend);
-      lastSentTime = currentTime;
-      if (lastLabelToSend === prevLabel) {
-        sendScheduled = false;
-      } else {
-        setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS);
-      }
-      return;
-    }
-  } catch (e) {
-    console.warn('BLE send failed:', e);
-  }
-
-  // 시리얼 전송 (연결되어 있을 때) - 오직 시리얼 모드에서만
-  if (!window.isBluetoothMode && serial && typeof serial.isOpen === 'function' && serial.isOpen()) {
-    serial.write(lastLabelToSend);
-    if (window.currentDeviceMode === 'esp32') {
-      serial.write('\r\n');
-    } else {
-      serial.write('\n');
-    }
-    lastSentTime = currentTime;
-    if (lastLabelToSend === prevLabel) {
-      sendScheduled = false;
-    } else {
-      setTimeout(sendLastLabel, MIN_TIME_BETWEEN_SENDS);
-    }
-    return;
-  }
-
-  // 전송 경로가 없으면 예약 종료
-  sendScheduled = false;
-}
-
-// 전역에서 시리얼 포트를 닫기 위한 함수 제공 (BLE 모드 진입 시 사용)
-async function closeSerialPort() {
-  try {
-    if (serial && typeof serial.isOpen === 'function' && serial.isOpen()) {
-      await serial.close();
-      window.updateSerialStatus("연결 안됨", "status-disconnected");
-    }
-  } catch (e) {
-    console.warn('closeSerialPort error:', e);
+    sendTimerId = null;
+    lastLabelToSend = null;
   }
 }
-window.closeSerialPort = closeSerialPort;
-
-// 시리얼 이벤트 핸들러들
-function onSerialErrorOccurred(eventSender, error) {
-  console.log("시리얼 오류:", error);
-  window.updateSerialStatus("연결 오류", "status-disconnected");
-}
-
-function onSerialConnectionOpened(eventSender) {
-  console.log("시리얼 포트 연결됨");
-  window.updateSerialStatus("연결됨", "status-connected");
-  try {
-    const btn = document.getElementById('serialButton');
-    if (btn && !window.isBluetoothMode) btn.textContent = '연결 해제';
-  } catch (e) {}
-}
-
-function onSerialConnectionClosed(eventSender) {
-  console.log("시리얼 포트 연결 종료");
-  window.updateSerialStatus("연결 안됨", "status-disconnected");
-  try {
-    const btn = document.getElementById('serialButton');
-    if (btn && !window.isBluetoothMode) btn.textContent = '연결';
-  } catch (e) {}
-}
-
-function onSerialDataReceived(eventSender, newData) {
-  console.log("수신된 데이터:", newData);
-  // 필요에 따라 수신된 데이터 처리
-}
-
-// 새로운 시리얼 연결 함수
-async function newConnect() {
-  try {
-    // 기존 포트가 열려 있으면 닫기
-    if (serial && serial.isOpen()) {
-      try {
-        await serial.close();
-        window.updateSerialStatus("기존 연결 종료", "status-waiting");
-        await new Promise(resolve => setTimeout(resolve, 500)); // 짧은 대기
-      } catch (e) {
-        console.warn("기존 포트 닫기 에러:", e);
-      }
-    }
-    
-    // Web Serial API 지원 확인
-    if (!navigator.serial) {
-      alert('이 브라우저에서는 Web Serial API를 지원하지 않습니다.');
-      return;
-    }
-    
-    window.updateSerialStatus("연결 시도중...", "status-waiting");
-    
-    // 새 포트 선택 및 연결
-    if (!serial.isOpen()) {
-      await serial.connectAndOpen(null, { baudRate: 115200 });
-    } else {
-      console.log("시리얼 포트가 이미 열려있습니다.");
-    }
-    
-  } catch (error) {
-    console.error("시리얼 연결 실패:", error);
-    window.updateSerialStatus("연결 실패", "status-disconnected");
-    alert("시리얼 포트 연결에 실패했습니다. 디바이스가 연결되어 있는지 확인하세요.");
-  }
-}
-
-// 전역 함수로 노출
-window.newConnect = newConnect;
 
 // 마우스 클릭 이벤트 (필요시 사용)
 function mouseClicked() {

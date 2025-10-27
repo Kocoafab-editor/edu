@@ -25,6 +25,13 @@ body.theme-microbit {
     --bg-end: #3454D1;
 }
 
+body.theme-orange {
+    --primary-color: #fb8720;
+    --background-color: #fb8720;
+    --bg-start: #ff9966;
+    --bg-end: #ff5e62;
+}
+
 body {
     font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
     line-height: 1.6;
@@ -270,6 +277,23 @@ body {
     left: 32px;
 }
 
+#connectionToggle.locked,
+.connection-toggle.locked {
+  filter: grayscale(100%);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 토글 내부 트랙/손잡이 클래스가 있다면 함께 흐리기 (선택) */
+#connectionToggle.locked .toggle-track,
+.connection-toggle.locked .toggle-track {
+  background-color: #bdbdbd !important;
+}
+#connectionToggle.locked .toggle-knob,
+.connection-toggle.locked .toggle-knob {
+  background-color: #cfcfcf !important;
+}
+
 /* 버튼 스타일링 */
 .btn {
     font-size: 0.9em;
@@ -309,10 +333,36 @@ body {
     margin-top: 8px;
 }
 
-.header-toggle-btn {
+.header-top-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* width: 90px; */
     position: absolute;
-    top: 5px; right: 8px;
-    z-index: 10;
+    top: 6px; right: 20px;
+    padding: 0 12px 0 12px;
+    z-index: 10003; /* 햄버거/토글 위 */
+}
+
+.header-top-controls .help-btn {
+    background: rgb(248, 249, 255);
+    border: 1px solid #653f91;
+    border-radius: 100%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.header-top-controls .right-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-toggle-btn {
     background: #eee;
     border-radius: 50%;
     border: none;
@@ -337,6 +387,20 @@ body {
     transform: rotate(180deg);
 }
 
+/* header-top-controls 내부에서는 hamburger-btn의 절대 위치를 무시하고 플로우로 배치 */
+.header-top-controls .hamburger-btn {
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+}
+
+/* 모바일에서 상단 여백 조정: 기존 hamburger 절대배치 여백을 header-top-controls 기준으로 보정 */
+@media (max-width: 480px) {
+    .header-content {
+        padding-top: 48px; /* 상단 컨트롤 영역 높이 만큼 확보 */
+    }
+}
+
 /* 접혔을 때 숨김 */
 .header-settings-bar.closed {
     max-height: 0 !important;
@@ -348,6 +412,24 @@ body {
 .header-title-desc {
     text-align: center;
     margin-top: 0;
+}
+
+.device-select-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 7px;
+    margin-bottom: 13px;
+}
+
+.device-select {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    min-width: 125px;
+    font-size: 1em;
 }
 
 .device-toggle-header {
@@ -626,6 +708,63 @@ body {
     background: #dcfce7;
     color: #10b981;
 }
+
+/* 예시: 이미지 영역 레이아웃 */
+.code-examples .example-media-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 240px;
+  padding: 12px;
+  gap: 30px;
+}
+
+/* 예시 이미지 크기 */
+.code-examples .example-media-img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* "예시 코드 확인하기" 버튼 */
+.open-code-btn {
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+  cursor: pointer;
+  transition: transform 80ms ease, box-shadow 200ms ease, background-color 200ms ease, color 200ms ease;
+}
+
+/* 호버/액티브/포커스 상태 */
+.open-code-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.20);
+  background: #f8fafc; /* 약한 하이라이트 */
+}
+
+.open-code-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+}
+
+.open-code-btn:focus-visible {
+  outline: 2px solid #4f46e5; /* 접근성 포커스 */
+  outline-offset: 2px;
+}
+
+/* (선택) 토글 잠금 회색톤 스타일 이미 있으나, 유지용 */
+#connectionToggle.locked,
+.connection-toggle.locked {
+  filter: grayscale(100%);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 
 .hidden {
     display: none;
