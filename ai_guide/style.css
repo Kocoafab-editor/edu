@@ -1,6 +1,6 @@
 
 .ai-guide-page .container {
-    padding-top: 250px;
+    padding-top: 180px;
 }
 
 html {
@@ -74,14 +74,20 @@ html {
 }
 
 .ai-guide-page .header-content h1 {
+    font-size: 1.8em;
+    font-weight: 800;
     line-height: 1.3;
     color: var(--header-text);
+}
+
+.ai-guide-page .header-content p {
+    margin-bottom: 5px;
 }
 
 .ai-guide-page h1 {
     font-size: 2.8em;
     font-weight: 700;
-    margin-bottom: 20px;
+    margin-bottom: 8px;
     text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
 }
 
@@ -120,7 +126,7 @@ html {
 
 .ai-guide-page .header-content .subtitle {
     color: var(--header-text);
-    font-size: 1.2em;
+    font-size: 1.1em;
     opacity: 0.95;
 }
 
@@ -201,10 +207,10 @@ li {
 
 @media (max-width: 768px) {
     h1 {
-        font-size: 2.2em;
+        font-size: 1.4em;
     }
     h2 {
-        font-size: 1.6em;
+        font-size: 1.2em;
     }
     .week-plan-grid { 
         grid-template-columns: 1fr;
@@ -216,12 +222,12 @@ li {
         font-size: 80%;
     }
     .ai-guide-page .container {
-        padding-top: 120px;
+        padding-top: 100px;
     }
-    .header h1 {
+    .ai-guide-page .header-content h1 {
         margin-top: 8px;
         margin-bottom: 4px;
-        font-size: 1.8em;
+        font-size: 1.2em;
     }
     .ai-guide-page .header-content .subtitle {
       font-size: 1em;

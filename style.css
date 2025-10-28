@@ -16,7 +16,8 @@ body {
 }
 
 .main-brand {
-    font-size: 2.2em;
+    font-size: 3em;
+    text-align: center;
     color: #fff;
     font-weight: 800;
     letter-spacing: 1px;
@@ -24,8 +25,8 @@ body {
 }
 .main-guide-title {
     font-size: 1.5em;
+    text-align: center;
     color: #f0f3fc;
-    margin-top: 10px;
     font-weight: 600;
     text-shadow: 0 2px 8px rgba(80,40,160,0.10);
 }
@@ -44,6 +45,7 @@ body {
 
 .main-card {
     display:flex;
+    margin-top: 30px;
     gap:32px;
     flex-wrap:wrap;
     justify-content:center;
