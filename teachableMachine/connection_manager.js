@@ -9,6 +9,7 @@
       this._bleReady = false;
       this._lastSentValue = null;   // (선택) 동일 값 중복 전송 최소화용
       this._lastSentAt = 0;
+      this.dedupe = !!opts.dedupe;
     }
 
     /* ---------- 외부(UI) Serial 상태 전달 ---------- */
@@ -91,7 +92,7 @@
       const payload = String(text ?? '');
 
       // (선택) 직전 전송값과 같으면 스킵 — 필요 없으면 이 4줄 제거해도 됩니다.
-      if (payload === this._lastSentValue) {
+      if (this.dedpue && payload === this._lastSentValue) {
         this._lastSentAt = Date.now();
         return;
       }
