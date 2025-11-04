@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>나만의 금쪽이 찾기</title>
+  <link rel="icon" href="assets/favicon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="page">
+    <!-- Header -->
+    <header class="site-header">
+      <div class="frame header-inner">
+        <img src="assets/logo.png" alt="코코아팹 로고" class="logo">
+      </div>
+      <div id="top-progress" class="top-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+        aria-valuenow="0">
+        <div class="bar"></div>
+      </div>
+    </header>
+
+    <!-- Main container -->
+    <main id="app" class="container frame">
+      <!-- Home / Landing -->
+      <section id="view-home" class="view is-active" aria-label="초기 메인">
+        <div class="view-hero">
+          <img class="bg-top" src="assets/bg-home.png" alt="">
+        </div>
+
+        <div class="dock" id="home-dock">
+          <div class="start-btn">
+            <button id="btn-start" class="btn primary">시작하기</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Role selection -->
+      <section id="view-role" class="view" aria-label="유형 선택">
+        <div class="view-hero">
+          <img class="bg-top" src="assets/bg-default.png" alt="">
+          <div class="view-content center">
+            <h2 id="role-title" class="title">참가자 유형을 선택하세요</h2>
+            <div id="role-grid" class="role-grid">
+              <button class="role-card" data-role="student" aria-label="학생">
+                <span class="role-label">학생</span>
+              </button>
+              <button class="role-card" data-role="teacher" aria-label="교사">
+                <span class="role-label">교사</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Quiz -->
+      <section id="view-quiz" class="view" aria-label="문항">
+        <div class="view-hero">
+          <img class="bg-top" src="assets/bg-default.png" alt="">
+          <div class="view-content quiz">
+            <div class="quiz-header"><span id="progress">[ 1 / 10 ]</span></div>
+            <h3 id="question-text" class="question">문항이 여기에 표시됩니다.</h3>
+          </div>
+        </div>
+
+        <div class="dock" id="quiz-dock">
+          <div class="options">
+            <button id="option-a" class="btn option"></button>
+            <button id="option-b" class="btn option"></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Loading -->
+      <section id="view-loading" class="view" aria-label="로딩">
+        <div class="view-hero">
+          <img class="bg-top" src="assets/bg-default.png" alt="">
+          <div class="view-overlay loading-block">
+            <figure class="loading-figure">
+              <img id="loading-image" src="" alt="">
+            </figure>
+            <p id="loading-text" class="loading-text">로딩 중</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Result -->
+      <section id="view-result" class="view" aria-label="결과">
+        <div class="view-content result-flow">
+          <figure class="result-figure">
+            <img id="result-image" src="" alt="결과 이미지">
+          </figure>
+
+          <div class="save-hint" aria-hidden="true">
+            <div class="save-hint__rule"></div>
+            <p class="hint hint--desktop">▲ 마우스 우측 눌러 이미지 저장하기 ▲</p>
+            <p class="hint hint--mobile">▲ 이미지 꾹 눌러 저장하기 ▲</p>
+          </div>
+        </div>
+
+        <div class="dock" id="result-dock">
+          <div class="actions actions--result">
+            <button id="btn-all-types" class="btn btn-block">모든 유형 보기</button>
+            <button id="btn-share" class="circle-btn primary" aria-label="공유하기" title="결과 공유하기">
+              <img src="assets/icon_white.svg" style="width: 40%; "></img>
+            </button>
+            <button id="btn-home" class="circle-btn" data-go="home" aria-label="처음으로" title="처음으로">
+              <svg class="icon-white" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+                <path d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3l9-8z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal: all types -->
+    <div id="modal-types" class="modal" aria-hidden="true" role="dialog" aria-label="모든 유형">
+      <div class="modal__backdrop" data-close></div>
+      <div class="modal__panel">
+        <header class="modal__header">
+          <h3>모든 유형</h3>
+          <button class="icon-btn" data-close aria-label="닫기">✕</button>
+        </header>
+        <div class="modal__body">
+          <div id="types-grid" class="types-grid">…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">
+    <span class="toast__icon" aria-hidden="true">✓</span>
+    <span class="toast__text">복사 완료</span>
+  </div>
+
+  <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
