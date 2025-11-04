@@ -165,6 +165,14 @@ function disableResultPaddingSync(){
   if (__resultActionsRO) { __resultActionsRO.disconnect(); __resultActionsRO = null; }
 }
 
+function stopPressLoop(){
+  isPressing = false;
+  clearInterval(pressTimer);
+  pressTimer = null;
+  // ✅ 해제
+  document.body.classList.remove('no-select', 'no-drag');
+}
+
 // === Heart FX 설정값(원하는 대로 조절) ===
 const HeartFX = {
   emoji: '♥️',          // 이모지 초기 버전
@@ -243,6 +251,8 @@ let lastPos = { x: 0, y: 0 };
 function startPressLoop(x, y){
   isPressing = true;
   lastPos = { x, y };
+  document.body.classList.add('no-select', 'no-drag');
+
   burstHearts(x, y);
   clearInterval(pressTimer);
   pressTimer = setInterval(() => {
@@ -264,7 +274,10 @@ function stopPressLoop(){
       startPressLoop(e.clientX, e.clientY);
     });
     document.addEventListener('pointermove', (e) => {
-      if (isPressing) lastPos = { x: e.clientX, y: e.clientY };
+      if (isPressing) {
+        lastPos = { x: e.clientX, y: e.clientY };
+        e.preventDefault();
+      }
     }, { passive: true });
     document.addEventListener('pointerup', stopPressLoop);
     document.addEventListener('pointercancel', stopPressLoop);
@@ -284,11 +297,17 @@ function stopPressLoop(){
       if (!isPressing) return;
       const t = e.touches[0]; if (!t) return;
       lastPos = { x: t.clientX, y: t.clientY };
-    }, { passive: true });
+    }, { passive: false });
     document.addEventListener('touchend', stopPressLoop);
     document.addEventListener('touchcancel', stopPressLoop);
   }
 })();
+
+function blockWhilePressing(e){
+  if (isPressing) e.preventDefault();
+}
+document.addEventListener('selectstart', blockWhilePressing); // 텍스트/요소 선택 시작
+document.addEventListener('dragstart',   blockWhilePressing); // 이미지/링크 드래그 시작
 
 
 // ---- Utilities

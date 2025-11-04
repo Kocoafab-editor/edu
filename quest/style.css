@@ -510,3 +510,16 @@ img { max-width: 100%; height: auto; }
       scale(calc(var(--scale,1) * 1.1));
   }
 }
+
+/* 누르고 있는 동안 선택/드래그 방지용 토글 클래스 */
+.no-select {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+.no-drag img, .no-drag a, .no-drag svg {
+  -webkit-user-drag: none !important;
+  user-drag: none !important; /* 일부 브라우저에서 무시되지만 무해 */
+}
+
+/* (선택) 모바일 탭 하이라이트 제거 */
+html, body { -webkit-tap-highlight-color: transparent; }
