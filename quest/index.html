@@ -4,6 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preload" href="assets/fonts/CookieRun-Regular.woff" as="font" type="font/woff" crossorigin>
   <title>나만의 금쪽이 찾기</title>
   <link rel="icon" href="assets/favicon.png">
   <link rel="stylesheet" href="style.css">
@@ -14,7 +15,7 @@
     <!-- Header -->
     <header class="site-header">
       <div class="frame header-inner">
-        <img src="assets/logo.png" alt="코코아팹 로고" class="logo">
+        <img src="assets/logo.png" alt="코코아팹 로고" class="logo" loading="eager" fetchpriority="high">
       </div>
       <div id="top-progress" class="top-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100"
         aria-valuenow="0">
@@ -27,7 +28,7 @@
       <!-- Home / Landing -->
       <section id="view-home" class="view is-active" aria-label="초기 메인">
         <div class="view-hero">
-          <img class="bg-top" src="assets/bg-home.png" alt="">
+          <img class="bg-top" src="assets/bg-home.png" alt="" decoding="async" loading="eager" fetchpriority="high">
         </div>
 
         <div class="dock" id="home-dock">
@@ -59,7 +60,7 @@
       <!-- Quiz -->
       <section id="view-quiz" class="view" aria-label="문항">
         <div class="view-hero">
-          <img class="bg-top" src="assets/bg-default.png" alt="">
+          <img class="bg-top" src="assets/bg-default.png" alt="" decoding="async" loading="eager" fetchpriority="high">
           <div class="view-content quiz">
             <div class="quiz-header"><span id="progress">[ 1 / 10 ]</span></div>
             <h3 id="question-text" class="question">문항이 여기에 표시됩니다.</h3>
@@ -77,7 +78,7 @@
       <!-- Loading -->
       <section id="view-loading" class="view" aria-label="로딩">
         <div class="view-hero">
-          <img class="bg-top" src="assets/bg-default.png" alt="">
+          <img class="bg-top" src="assets/bg-default.png" alt="" decoding="async" loading="eager" fetchpriority="high">
           <div class="view-overlay loading-block">
             <figure class="loading-figure">
               <img id="loading-image" src="" alt="">
@@ -91,13 +92,46 @@
       <section id="view-result" class="view" aria-label="결과">
         <div class="view-content result-flow">
           <figure class="result-figure">
-            <img id="result-image" src="" alt="결과 이미지">
+            <img id="result-image" src="" alt="결과 이미지" decoding="async" loading="eager" fetchpriority="high">
           </figure>
 
           <div class="save-hint" aria-hidden="true">
-            <div class="save-hint__rule"></div>
             <p class="hint hint--desktop">▲ 마우스 우측 눌러 이미지 저장하기 ▲</p>
             <p class="hint hint--mobile">▲ 이미지 꾹 눌러 저장하기 ▲</p>
+          </div>
+        </div>
+
+        <div class="reco-block">
+          <div class="reco-sep dotted"></div>
+          <h3 class="reco-title">함께하면 좋은 콘텐츠를 추천해요~!</h3>
+          <p class="reco-sub">▼ 콘텐츠 클릭해서 예시 대화 보기 ▼</p>
+          <p class="reco-note">(실제 콘텐츠는 제품 구매 후 앱을 통해 사용 가능합니다)</p>
+
+          <figure id="reco-main" class="reco-thumb" role="button" tabindex="0" aria-label="추천 콘텐츠 열기">
+            <img id="reco-image" src="" alt="추천 콘텐츠 썸네일" loading="lazy" fetchpriority="low">
+            <figcaption id="reco-caption">콘텐츠 제목</figcaption>
+          </figure>
+
+          <div class="reco-sep dotted"></div>
+          <h4 class="reco-title2">금쪽이에 대해서 더 알고 싶다면?</h4>
+          <p class="reco-sub">▼ 버튼 클릭해서 바로 가기 ▼</p>
+
+          <div class="reco-cta">
+            <button class="img-btn" id="btn-learn" aria-label="더 알아보기">
+              <img src="assets/btn/learn.png" alt="" loading="lazy" fetchpriority="low">
+              <span class="img-btn__label">
+                <small>AI 금쪽이 스피커</small>
+                <strong>더 알아보기</strong>
+              </span>
+            </button>
+
+            <button class="img-btn" id="btn-buy" aria-label="구매하기">
+              <img src="assets/btn/buy.png" alt="" loading="lazy" fetchpriority="low">
+              <span class="img-btn__label">
+                <small>AI 금쪽이 스피커</small>
+                <strong>구매하기</strong>
+              </span>
+            </button>
           </div>
         </div>
 
@@ -105,7 +139,7 @@
           <div class="actions actions--result">
             <button id="btn-all-types" class="btn btn-block">모든 유형 보기</button>
             <button id="btn-share" class="circle-btn primary" aria-label="공유하기" title="결과 공유하기">
-              <img src="assets/icon_white.svg" style="width: 40%; "></img>
+              <img src="assets/icon_white.svg" alt="" style="width: 40%; "></img>
             </button>
             <button id="btn-home" class="circle-btn" data-go="home" aria-label="처음으로" title="처음으로">
               <svg class="icon-white" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
@@ -118,11 +152,12 @@
     </main>
 
     <!-- Modal: all types -->
-    <div id="modal-types" class="modal" aria-hidden="true" role="dialog" aria-label="모든 유형">
+    <div id="modal-types" class="modal" role="dialog" aria-modal="true"
+        aria-labelledby="modal-types-title" hidden>
       <div class="modal__backdrop" data-close></div>
-      <div class="modal__panel">
+      <div class="modal__panel" role="document">
         <header class="modal__header">
-          <h3>모든 유형</h3>
+          <h3 id="modal-types-title">모든 유형</h3>
           <button class="icon-btn" data-close aria-label="닫기">✕</button>
         </header>
         <div class="modal__body">
@@ -130,7 +165,23 @@
         </div>
       </div>
     </div>
+
+    
+    <div id="modal-reco" class="modal" role="dialog" aria-modal="true"
+        aria-labelledby="modal-reco-title" hidden>
+      <div class="modal__backdrop" data-close></div>
+      <div class="modal__panel" role="document">
+        <header class="modal__header is-center">
+          <h3 id="modal-reco-title">콘텐츠</h3>
+          <button class="icon-btn" data-close aria-label="닫기">✕</button>
+        </header>
+        <div class="modal__body"></div>
+      </div>
+    </div>
+    
   </div>
+  
+
 
   <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">
     <span class="toast__icon" aria-hidden="true">✓</span>

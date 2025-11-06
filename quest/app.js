@@ -63,6 +63,35 @@ function shuffle(arr) {
 }
 
 // 간단 프리로드(깜박임 완화)
+window.requestIdleCallback ||= (cb)=> setTimeout(()=>cb({timeRemaining:()=>50}), 1);
+
+// ---- 이미지 프리로드(브라우저 캐시 채우기) ----
+function preloadImage(url, priority = 'low'){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    // Priority Hints (Chrome)
+    try { img.fetchPriority = priority; } catch(e){}
+    img.decoding = 'async';
+    img.loading = (priority === 'high') ? 'eager' : 'lazy';
+    img.onload = img.onerror = resolve;
+    img.src = url;
+  });
+}
+
+function preloadImages(urls, priority='low'){
+  return Promise.all(urls.map(u => preloadImage(u, priority)));
+}
+
+// LCP 후보를 알게 된 순간: 동적 <link rel="preload"> 삽입
+function preloadAsImageHigh(url){
+  const link = document.createElement('link');
+  link.rel = 'preload';
+  link.as = 'image';
+  link.href = url;
+  link.setAttribute('fetchpriority','high');
+  document.head.appendChild(link);
+}
+
 function preload(images = []) {
   images.forEach(src => { const im = new Image(); im.src = src; });
 }
@@ -103,32 +132,37 @@ function syncResultBottomSpace(){
   const view = document.getElementById('view-result');
   if (!view) return;
 
-  const content = view.querySelector('.view-content.result-flow');
+  const content = view.querySelector('.reco-block');
   const actions = document.querySelector('.actions.actions--result');
-  if (!content) return;
+  const dockBox = document.getElementById('result-dock');
+  if (!content){ return; }
 
-  if (!actions) { content.style.paddingBottom = '0px'; return; }
+  if (!actions){ content.style.paddingBottom = '0px'; return; }
 
-  // 측정 (확대/폰트/레이아웃 변화 반영)
   const rectC = content.getBoundingClientRect();
   const rectA = actions.getBoundingClientRect();
 
-  const actionsH = Math.ceil(rectA.height);     // 버튼 실제 높이
-  const GAP     = 16;                           // 버튼과 콘텐츠 사이 여유
-  const MULT    = 2;                            // ✅ 요청: 기본 2배로 확보
-  const SAFE    = getSafeAreaInsetBottomPx();   // iOS 하단 홈바 등
+  const actionsH = Math.ceil(rectA.height);
+  const GAP  = 16;             // 버튼 위 시각적 여유
+  const MULT = 2;              // ✅ 요청: 2배 확보
+  const SAFE = (function(){
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;bottom:0;left:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
+    document.body.appendChild(probe);
+    const v = parseFloat(getComputedStyle(probe).paddingBottom || '0') || 0;
+    document.body.removeChild(probe);
+    return v;
+  })();
+  // 도크 자체의 bottom 오프셋(px)도 반영
+  const bottomOffset = dockBox ? (parseFloat(getComputedStyle(dockBox).bottom || '0') || 0) : 0;
 
-  // 지금 상태에서 겹칠지 판단(기존 버튼 상단 기준)
-  const willOverlap = rectC.bottom > (window.innerHeight - (actionsH + GAP));
+  // 겹침 판단: 콘텐츠 바닥이 '도크 상단'보다 아래로 내려오면 겹침
+  const dockTop = window.innerHeight - (actionsH + bottomOffset);
+  const willOverlap = rectC.bottom > dockTop;
 
-  // 겹칠 때만 "2배 + 여유 + 안전영역" 만큼 패딩 부여
-  const pad = willOverlap ? Math.ceil(actionsH * MULT + GAP + SAFE) : 0;
-
-  // 필요할 때만 업데이트(리플로우 최소화)
+  const pad = willOverlap ? Math.ceil(actionsH * MULT + GAP + SAFE + bottomOffset) : 0;
   const cur = parseFloat(content.style.paddingBottom || '0') || 0;
-  if (Math.abs(cur - pad) > 0.5) {
-    content.style.paddingBottom = pad + 'px';
-  }
+  if (Math.abs(cur - pad) > 0.5) content.style.paddingBottom = pad + 'px';
 }
 
 function scheduleSyncResultBottomSpace(){
@@ -278,7 +312,7 @@ function stopPressLoop(){
         lastPos = { x: e.clientX, y: e.clientY };
         e.preventDefault();
       }
-    }, { passive: true });
+    }, { passive: false });
     document.addEventListener('pointerup', stopPressLoop);
     document.addEventListener('pointercancel', stopPressLoop);
     document.addEventListener('pointerleave', stopPressLoop);
@@ -311,6 +345,51 @@ document.addEventListener('dragstart',   blockWhilePressing); // 이미지/링�
 
 
 // ---- Utilities
+const KEY_TO_SLUG = {
+  '탐구': 'explore',
+  '창의': 'creative',
+  '소통': 'social',
+  '계획': 'system',   // 학생 '계획' ↔ 교사 '체계' 동일 썸네일
+  '체계': 'system',
+  '감성': 'empathy',
+  '도전': 'challenge',
+  '혁신': 'innovation'
+};
+
+const ALL_THUMB_SLUGS = [
+  'explore','creative','social','system','empathy','challenge','innovation'
+];
+
+function thumbPath(slug){
+  return `${ASSET_BASE}/thumbnail/${slug}.png`;
+}
+
+async function renderRecoForResult(res){
+  const slug = KEY_TO_SLUG[res?.key] || 'creative';
+
+  const data  = await loadRecoData();
+  const title = data?.contents?.[slug]?.title || '콘텐츠';
+
+  const img = document.getElementById('reco-image');
+  if (img){
+    img.src = thumbPath(slug);
+    img.alt = `${title} 썸네일`;
+    img.fetchPriority = 'high';
+    img.loading = 'eager';
+    img.decoding = 'async';
+  }
+  const cap = document.getElementById('reco-caption');
+  if (cap){
+    cap.textContent = title;          // ← JSON의 title로 갱신
+    cap.setAttribute('title', title); // 툴팁/접근성
+  }
+
+  // 프리로드(그대로 유지)
+  preload(ALL_THUMB_SLUGS.map(thumbPath));
+
+  // 현재 값(슬러그/타이틀) 저장해두면 다른 곳에서 필요 시 참조 가능
+  renderRecoForResult._current = { slug, title };
+}
 
 function syncQuizDockHeight(){
   const quiz = document.getElementById('view-quiz');
@@ -542,10 +621,16 @@ function renderResult(res){
   const id = res?.id || 1; // 1~6
   const src = `${ASSET_BASE}/${role}/result/pic${id}.png`;
 
+  preloadAsImageHigh(src);
   const img = document.getElementById('result-image');
   if (img) {
+    img.fetchPriority = 'high';
+    img.loading = 'eager';
+    img.decoding = 'async';
     img.src = src;
     img.alt = `결과 카드 ${id}`;
+
+    img.decode?.().catch(()=>{}).finally(()=>{ img.style.visibility = 'visible'; });
   }
 
   // 텍스트들은 이제 사용하지 않으므로 지우거나 숨김(이미 제거했으면 생략)
@@ -558,6 +643,8 @@ function renderResult(res){
 
   // 프리로드: 모달 썸네일도 미리
   preload(buildImages('modal', role));
+
+  renderRecoForResult(res);
 }
 
 function populateTypesGridForModal(){
@@ -608,14 +695,52 @@ function stopLoadingFX(){
 
 
 // ---- Modal helpers
-function openModal(){
-  UI.modal.classList.add('is-open');
-  UI.modal.setAttribute('aria-hidden', 'false');
+function openModalById(id){
+  const modal = document.getElementById(id);
+  if (!modal || !modal.classList.contains('modal')) return;
+  modal.hidden = false;
+  requestAnimationFrame(() => modal.classList.add('is-open'));
+  document.body.classList.add('has-modal');
 }
-function closeModal(){
-  UI.modal.classList.remove('is-open');
-  UI.modal.setAttribute('aria-hidden', 'true');
+function closeModalById(id){
+  const modal = document.getElementById(id);
+  if (!modal || !modal.classList.contains('modal')) return;
+  modal.classList.remove('is-open');
+  // transition 유무와 상관 없이 안전하게 hidden 처리
+  const hide = () => { modal.hidden = true; modal.removeEventListener('transitionend', hide); };
+  modal.addEventListener('transitionend', hide, { once: true });
+  setTimeout(hide, 200); // 폴백
+
+  // 다른 모달이 열려있지 않을 때만 body 클래스 해제
+  requestAnimationFrame(() => {
+    if (!document.querySelector('.modal.is-open')) {
+      document.body.classList.remove('has-modal');
+    }
+  });
 }
+
+// 닫기 버튼/백드롭 위임
+document.addEventListener('click', (e) => {
+  const closer = e.target.closest('[data-close]');
+  if (!closer) return;
+  const modal = closer.closest('.modal');
+  if (modal?.id) closeModalById(modal.id);
+});
+
+// ESC로 최상단 모달 닫기
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const opened = Array.from(document.querySelectorAll('.modal.is-open'));
+  const top = opened[opened.length - 1];
+  if (top?.id) closeModalById(top.id);
+});
+
+// (호환) legacy closeModal 호출이 남아있다면 최상단 모달을 닫도록 매핑
+window.closeModal = function(){
+  const opened = Array.from(document.querySelectorAll('.modal.is-open'));
+  const top = opened[opened.length - 1];
+  if (top?.id) closeModalById(top.id);
+};
 
 // ---- Share
 async function shareResult(){
@@ -636,6 +761,203 @@ async function shareResult(){
   }
 }
 
+/* ===== JSON 로드 ===== */
+const RECO_JSON_URL = 'data/chat-flows.json';
+let RECO_DATA = null;
+
+async function loadRecoData(){
+  if (RECO_DATA) return RECO_DATA;
+  try{
+    const res = await fetch(RECO_JSON_URL, { cache: 'no-store' });
+    if(!res.ok) throw new Error('failed');
+    RECO_DATA = await res.json();
+  }catch(e){
+    RECO_DATA = { common:{ cta:{ text:'', button:{label:'', url:'#'} } }, contents:{} };
+  }
+  return RECO_DATA;
+}
+
+/* ===== 채팅 모달 열기 ===== */
+// ✅ 추천-채팅 모달 열기 (모달 컨테이너 #modal-reco 기준으로 범위 제한)
+async function openRecoModal(slug, titleText){
+  const data   = await loadRecoData();
+  const entry  = data.contents?.[slug];
+
+  // ⬇️ dot( . ) 빼고 id로 정확히 선택
+  const modal  = document.getElementById('modal-reco');
+  if (!modal) return;
+
+  const header = modal.querySelector('.modal__header');
+  const h3     = header?.querySelector('h3');
+  const body   = modal.querySelector('.modal__body');
+  if (!header || !h3 || !body) return;
+  h3.textContent = titleText || entry?.title || '콘텐츠';
+
+  header.classList.add('is-center');
+  h3.textContent = titleText || entry?.title || '콘텐츠';
+
+  // 본문 템플릿 주입
+  body.innerHTML = `
+    <div class="chat-wrap">
+      <div id="chat-log" class="chat-log" aria-live="polite" aria-atomic="false"></div>
+    </div>
+  `;
+
+  // ⬇️ 문서 전체가 아니라 '이 모달 내부'에서 찾습니다
+  const log      = modal.querySelector('#chat-log');
+  const examples = entry?.examples || [];
+  const chosen   = examples.length ? examples[Math.floor(Math.random()*examples.length)] : [];
+
+  let turn = 0;
+  const totalTurns = Math.min(chosen.length, 3); // 3턴만
+
+  const appendMsg = (text, who) => {
+    const div = document.createElement('div');
+    div.className = `msg ${who}`;
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  };
+
+  const appendTyping = () => {
+    const div = document.createElement('div');
+    div.className = 'msg bot typing';
+    div.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  };
+
+  const typeText = (el, text, delay=16) => new Promise(resolve=>{
+    el.textContent = '';
+    let i = 0;
+    const t = setInterval(()=>{
+      el.textContent += text[i++] || '';
+      log.scrollTop = log.scrollHeight;
+      if (i >= text.length){ clearInterval(t); resolve(); }
+    }, delay);
+  });
+
+  // 프롬프트(오른쪽 말풍선 내부에 '전송' 버튼)
+  function showPromptBubble(q){
+    const wrap = document.createElement('div');
+    wrap.className = 'msg prompt';
+    wrap.textContent = q;
+
+    const btn = document.createElement('button');
+    btn.className = 'send-mini';
+    btn.type = 'button';
+    btn.textContent = '전송';
+    wrap.appendChild(btn);
+
+    log.appendChild(wrap);
+    log.scrollTop = log.scrollHeight;
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true; btn.remove();      // 전송 버튼 제거
+      wrap.remove();                          // 프롬프트 제거 후
+      appendMsg(q, 'user');                   // 사용자 말풍선으로 전송
+
+      const typing = appendTyping();
+      await new Promise(r => setTimeout(r, 450 + Math.random()*400));
+      typing.remove();
+
+      const bot = appendMsg('', 'bot');
+      await typeText(bot, chosen[turn].a, 16);
+
+      turn++;
+      if (turn < totalTurns){
+        showPromptBubble(chosen[turn].q);
+      }else{
+        // 마지막: 공통 CTA
+        const cta = data.common?.cta;
+        if (cta && (cta.text || cta.button?.label && cta.button?.url)){
+          const bot2 = document.createElement('div');
+          bot2.className = 'msg bot';
+
+          if (cta.text) {
+            const p = document.createElement('p');
+            p.className = 'cta-text';
+            p.textContent = String(cta.text).trim();
+            bot2.appendChild(p);
+          }
+
+          if (cta.button?.label && cta.button?.url) {
+            const wrap = document.createElement('div');
+            wrap.className = 'inline-cta';
+            const a = document.createElement('a');
+            a.className = 'btn';
+            a.href = cta.button.url;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.textContent = cta.button.label;
+            wrap.appendChild(a);
+            bot2.appendChild(wrap);
+          }
+            
+          log.appendChild(bot2);
+          log.scrollTop = log.scrollHeight;
+        }
+      }
+    });
+  }
+
+  if (totalTurns > 0){
+    showPromptBubble(chosen[turn].q);
+  }else{
+    appendMsg('준비된 대화 예시가 없습니다.', 'bot');
+  }
+
+  // ✅ 통일된 컨트롤러로 이 모달만 오픈
+  openModalById('modal-reco');
+}
+
+/* ===== 오프너 바인딩: 썸네일 / 캡션 ===== */
+function bindRecoModalOpeners(){
+  const cap = document.getElementById('reco-caption');
+  const fig = document.getElementById('reco-main');
+
+  function currentSlug(){
+    const key = state?.lastResult?.key;   // 예: '탐구'/'체계' …
+    return KEY_TO_SLUG[key] || 'creative';
+  }
+  function currentTitle(){
+    return (cap?.textContent || '콘텐츠').trim();
+  }
+  const handler = () => openRecoModal(currentSlug());
+
+  cap?.addEventListener('click', handler);
+  cap?.addEventListener('keydown', (e)=>{ if (e.key==='Enter'||e.key===' '){ e.preventDefault(); handler(); }});
+  fig?.addEventListener('click', handler);
+  fig?.addEventListener('keydown', (e)=>{ if (e.key==='Enter'||e.key===' '){ e.preventDefault(); handler(); }});
+}
+
+/* 초기 한 번 */
+bindRecoModalOpeners();
+
+async function warmAssetsForRole(role){
+  // 역할별 로딩/결과/모달 이미지 번들(이미 프로젝트에 있던 빌더 사용)
+  const loadings = (typeof buildLoadingImages === 'function') ? buildLoadingImages(role) : [];
+  const results  = (typeof buildImages === 'function') ? buildImages('result', role) : [];
+  const modals   = (typeof buildImages === 'function') ? buildImages('modal',  role) : [];
+  const thumbs   = (typeof ALL_THUMB_SLUGS !== 'undefined')
+    ? ALL_THUMB_SLUGS.map(s => thumbPath(s)) : [];
+
+  // flows.json도 미리 캐시
+  const flowsUrl = (typeof RECO_JSON_URL !== 'undefined') ? RECO_JSON_URL : null;
+  requestIdleCallback(async ()=>{
+    try{
+      // 이미지 프리로드(낮은 우선순위, SW가 있으면 캐시에 들어감)
+      await preloadImages([...loadings, ...results, ...modals, ...thumbs], 'low');
+
+      // flows.json 미리 fetch → SW가 stale-while-revalidate로 캐시
+      if (flowsUrl) fetch(flowsUrl, { cache: 'no-store' }).catch(()=>{});
+    }catch(e){}
+  });
+}
+
+
 // ---- Wiring buttons
 UI.start?.addEventListener('click', ()=>{ showView('role'); updateQuery({ view:'role' }); });
 document.body.addEventListener('click',(e)=>{
@@ -643,7 +965,7 @@ document.body.addEventListener('click',(e)=>{
   if(go){
     const dest = go.getAttribute('data-go');
     showView(dest);
-    if(dest==='home') updateQuery({}); // clear query
+    if(dest==='home') updateQuery({}); // cleaFr query
     else updateQuery({ view: dest, role: state.role || '' });
   }
   const rc = e.target.closest('.role-card');
@@ -654,9 +976,8 @@ document.body.addEventListener('click',(e)=>{
       startQuiz();
     })();
   }
-  if(e.target.matches('[data-close]')) closeModal();
 });
-UI.btnAllTypes?.addEventListener('click', openModal);
+
 UI.btnShare?.addEventListener('click', shareResult);
 
 window.addEventListener('load', () => {
@@ -664,6 +985,10 @@ window.addEventListener('load', () => {
   if (active) {
     const id = Object.keys(Views).find(k => Views[k] === active);
     if (id) showView(id);
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
 });
 
@@ -681,10 +1006,18 @@ document.getElementById('quiz-dock')?.addEventListener('click', syncQuizDockHeig
 
 document.getElementById('btn-all-types')?.addEventListener('click', () => {
   populateTypesGridForModal();
-  openModal('types'); // ← 기존 모달 오픈 함수 사용
+  openModalById('modal-types'); // ← 기존 모달 오픈 함수 사용
 });
 
-// ---- Deep link handling (view=result&role=...&rid=...)
+
+// 이미지 버튼(추후 실제 URL 연결)
+document.getElementById('btn-learn')?.addEventListener('click', () => {
+  window.open('https://kocoafab.cc/product/aispeaker','_blank');
+});
+document.getElementById('btn-buy')?.addEventListener('click', () => {
+  window.open('https://url.kr/npq3b9','_blank');
+});
+
 (async function initFromURL(){
   const q = parseQuery();
   const view = q.get('view');
