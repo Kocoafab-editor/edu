@@ -61,9 +61,12 @@
       <section id="view-quiz" class="view" aria-label="문항">
         <div class="view-hero">
           <img class="bg-top" src="assets/bg-default.png" alt="" decoding="async" loading="eager" fetchpriority="high">
+          <div class="quiz-toolbar">
+            <button id="btn-quiz-back" class="btn btn--sm" type="button" hidden></button>
+          </div>
           <div class="view-content quiz">
-            <div class="quiz-header"><span id="progress">[ 1 / 10 ]</span></div>
-            <h3 id="question-text" class="question">문항이 여기에 표시됩니다.</h3>
+            <div class="quiz-header"><span id="progress"></span></div>
+            <h3 id="question-text" class="question"></h3>
           </div>
         </div>
 
@@ -107,8 +110,15 @@
           <p class="reco-sub">▼ 콘텐츠 클릭해서 예시 대화 보기 ▼</p>
           <p class="reco-note">(실제 콘텐츠는 제품 구매 후 앱을 통해 사용 가능합니다)</p>
 
-          <figure id="reco-main" class="reco-thumb" role="button" tabindex="0" aria-label="추천 콘텐츠 열기">
-            <img id="reco-image" src="" alt="추천 콘텐츠 썸네일" loading="lazy" fetchpriority="low">
+          <figure id="reco-main" class="reco-thumb">
+            <img id="reco-image"
+              src=""
+              alt="추천 콘텐츠 썸네일"
+              role="button"
+              tabindex="0"
+              aria-label="추천 콘텐츠 열기"
+              loading="lazy"
+              fetchpriority="low">
             <figcaption id="reco-caption">콘텐츠 제목</figcaption>
           </figure>
 

@@ -16,6 +16,8 @@
  --home-bg-green: #A8C277; /* 홈 그 아래 */
  --default-bg: #F7F5F0; /* 역할 선택 */
 
+  --progress-h: 5px;
+
  --maxw: 500px; 
  --header-h: 0px; 
  --dock-h: 0px; 
@@ -232,6 +234,35 @@ body.is-loading .top-progress { display: none; }
  } 
 .quiz-header #progress { 
  font-size: clamp(16px,3.2vw,26px); } 
+
+.quiz-toolbar{
+  position: sticky;
+  place-items: center;
+  pointer-events: none;
+  top: calc(var(--progress-h));
+  z-index: 20;
+  padding: 8px 12px 0;
+}
+#btn-quiz-back{
+  position: relative;
+  pointer-events: auto;
+}
+
+/* 작은 사이즈의 기본 버튼 */
+.btn.btn--sm{
+  padding: 6px 12px;
+  font-size: 0.92rem;
+  line-height: 1.2;
+
+  min-width: 0 !important;
+  width: 22%;
+  height: 35px;
+  border-radius: 17.5px;
+
+  background: #F18D00; 
+  color: var(--primary-fg); 
+}
+
 .question { 
  font-size:clamp(26px,4vw,36px); 
  text-align:center; 
@@ -239,7 +270,7 @@ body.is-loading .top-progress { display: none; }
  word-break: keep-all; 
  line-break: strict; 
  margin:8px 0 16px
- } 
+ }
 .options { display:grid; grid-template-columns:1fr; gap:12px; margin:0 auto; } 
 @media (min-width:640px) { 
  .options { grid-template-columns:1fr 1fr } 
@@ -562,7 +593,7 @@ html, body { -webkit-tap-highlight-color: transparent; }
  display: grid; 
  gap: 12px; 
  justify-items: center; 
- cursor: pointer; 
+ cursor: default; 
  } 
 .reco-thumb img { 
  width: min(360px, 100%); 
@@ -575,11 +606,16 @@ html, body { -webkit-tap-highlight-color: transparent; }
  font-size: 15px; 
  color:#333; 
  } 
-.reco-thumb:hover img { 
-  transform: translateY(-2px); 
-  box-shadow: var(--shadow) 0 12px 32px rgba(0,0,0,0.12);
-  filter: brightness(0.94);
- } 
+#reco-image[role="button"]{ cursor: pointer; }
+#reco-image[role="button"]:hover{ filter: brightness(.96); }
+#reco-image[role="button"]:active{ transform: translateY(1px); }
+#reco-image[role="button"]:focus-visible{
+  outline: 2px solid var(--accent, #1c5ea1);
+  outline-offset: 3px;
+  border-radius: 8px; /* 시각적 보정 */
+}
+
+
 
 /* 이미지 버튼(텍스트 없음, 배경이미지 파일만) */
 .reco-cta { 

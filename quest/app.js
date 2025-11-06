@@ -28,6 +28,10 @@ const UI = {
   loadingText: document.getElementById('loading-text'),
 };
 
+function getBackBtn(){
+  return UI.backQuiz || (UI.backQuiz = document.getElementById('btn-quiz-back'));
+}
+
 let state = {
   role: null, // 'student' | 'teacher'
   questions: [], // all 20
@@ -384,10 +388,6 @@ async function renderRecoForResult(res){
     cap.setAttribute('title', title); // 툴팁/접근성
   }
 
-  // 프리로드(그대로 유지)
-  preload(ALL_THUMB_SLUGS.map(thumbPath));
-
-  // 현재 값(슬러그/타이틀) 저장해두면 다른 곳에서 필요 시 참조 가능
   renderRecoForResult._current = { slug, title };
 }
 
@@ -544,16 +544,21 @@ async function loadDataForRole(role){
   for(const r of state.results) state.scores[r.key] = 0;
 }
 
+
 function startQuiz(){
-  // pick 10 unique random questions (out of 20)
-  setTopProgress(0, state.selected.length);
   state.selected = shuffle(state.questions).slice(0, 10);
-  state.index = 0;
-  for(const k of Object.keys(state.scores)) state.scores[k] = 0;
+  state.answers  = Array(10).fill(null);
+  state.index    = 0;
+  for (const k of Object.keys(state.scores)) state.scores[k] = 0;
+
+  setTopProgress(0, state.selected.length);
   renderQuestion();
   showView('quiz');
   updateQuery({ view:'quiz', role: state.role });
+
+  updateBackButton();
 }
+
 
 function renderQuestion(){
   const i = state.index;
@@ -567,38 +572,132 @@ function renderQuestion(){
   UI.optA.onclick = () => answer(0);
   UI.optB.onclick = () => answer(1);
   setTopProgress(state.index, state.selected.length); 
+  updateBackButton();
 }
 
 function answer(choiceIndex){
   const q = state.selected[state.index];
-  const chosen = q.options[choiceIndex];
-  // Increment category
-  state.scores[chosen.cat] = (state.scores[chosen.cat] || 0) + 1;
+
+  const prevChoice = state.answers[state.index];
+  if (prevChoice === 0 || prevChoice === 1){
+    const prevCat = q.options[prevChoice].cat;
+    state.scores[prevCat] = Math.max(0, (state.scores[prevCat] || 0) - 1);
+  }
+  // 새 선택 반영
+  state.answers[state.index] = choiceIndex;
+  const newCat = q.options[choiceIndex].cat;
+  state.scores[newCat] = (state.scores[newCat] || 0) + 1;
 
   // Next
   state.index++;
   if(state.index < state.selected.length){
     renderQuestion();
   }else{
-    // Finish -> Compute result
     setTopProgress(state.index, state.selected.length);
-    showView('loading');
+    const res = computeResult();
+    state.lastResult = res;
+
+    const resultImg = (typeof resultPath==='function')
+      ? resultPath(state.role, res.id)
+      : (buildImages && (buildImages('result', state.role).find(u=>u.includes(`pic${res.id}`)) || ''));
+
+    // 추천 썸네일(결과 → 콘텐츠 slug 매핑)
+    const slug = (typeof KEY_TO_SLUG!=='undefined' && state.lastResult?.key)
+      ? (KEY_TO_SLUG[state.lastResult.key] || 'creative')
+      : 'creative';
+    const recoImg = (typeof thumbPath==='function') ? thumbPath(slug) : '';
+
+
+    if (resultImg) preloadAsImageHigh(resultImg);
+    swPrefetchImages([resultImg, recoImg].filter(Boolean));
+    state._resultReady = resultImg ? preloadImage(resultImg, 'high') : Promise.resolve();
+
+
     const loadingImgs = shuffle(buildImages('loading', state.role));
-    preload(loadingImgs);
     startLoadingFX(loadingImgs);
-    setTimeout(()=>{
-      const res = computeResult();
-      state.lastResult = res;
+    showView('loading');
+
+    // ✅ 5초 동안 결과/모달/썸네일까지 추가로 여유 프리패치
+    requestIdleCallback(()=> {
+      const modalsAll = (typeof buildImages==='function') ? buildImages('modal', state.role) : [];
+      preloadImages(modalsAll, 'low');
+    });
+
+    // ✅ 5초 후 결과 표시(이미지 프리로드가 끝날 때까지 잠깐 더 기다림)
+    setTimeout(async ()=>{
+      await (state._resultReady || Promise.resolve());
       try{
         localStorage.setItem('goldenKids-last', JSON.stringify({role: state.role, resultId: res.id, when: Date.now()}));
       }catch{}
       updateQuery({ view:'result', role: state.role, rid: String(res.id) });
-      renderResult(res);
+      renderResult(res);       // 이미 캐시에 있어 즉시 뜸
       stopLoadingFX();
       showView('result');
     }, 5000);
   }
+  updateBackButton();
 }
+
+function goBackQuestion(){
+  if (!state || !state.selected) return;
+  if (state.index > 0){
+    state.index--;
+    renderQuestion();
+  }
+  updateBackButton();
+}
+UI.backQuiz && (UI.backQuiz.onclick = goBackQuestion);
+
+function updateBackButton(){
+  const btn = getBackBtn();
+  if (!btn) return;
+  const quizView = document.getElementById('view-quiz');
+  const inQuiz = quizView && !quizView.hidden;
+  if (!inQuiz){
+    btn.hidden = true;
+    return;
+  }
+  btn.textContent = '< 뒤로가기';
+  if (state.index <= 0){
+    // 첫 문항: '처음으로' (역할 선택 화면으로 복귀)
+    btn.hidden   = false;
+    btn.disabled = false;
+    btn.dataset.mode = 'to-role';
+  }else{
+    // 두 번째 문항부터: '이전 문항'
+    btn.hidden   = false;
+    btn.disabled = false;
+    btn.dataset.mode = 'prev';
+  }
+}
+
+function resetQuizState(){
+  state.selected = [];
+  state.answers  = [];
+  state.index    = 0;
+  for (const k of Object.keys(state.scores)) state.scores[k] = 0;
+}
+
+document.addEventListener('click', (e)=>{
+  const t = e.target;
+  if (t && t.id === 'btn-quiz-back'){
+    e.preventDefault();
+    if (t.dataset.mode === 'to-role'){
+      // 역할 선택 화면으로 복귀
+      resetQuizState();
+      showView('role');
+      updateQuery({ view:'role', role: state.role });
+      // 진행바/버튼 상태 갱신
+      setTopProgress(0, 0);
+      updateBackButton();
+    }else{
+      // 이전 문항으로
+      goBackQuestion();
+    }
+  }
+});
+
+// 초기 바인딩
 
 function computeResult(){
   // build a map from key -> {score, id}
@@ -855,9 +954,9 @@ async function openRecoModal(slug, titleText){
     log.scrollTop = log.scrollHeight;
 
     btn.addEventListener('click', async () => {
-      btn.disabled = true; btn.remove();      // 전송 버튼 제거
-      wrap.remove();                          // 프롬프트 제거 후
-      appendMsg(q, 'user');                   // 사용자 말풍선으로 전송
+      btn.disabled = true; btn.remove();
+      wrap.remove();
+      appendMsg(q, 'user');
 
       const typing = appendTyping();
       await new Promise(r => setTimeout(r, 450 + Math.random()*400));
@@ -916,45 +1015,43 @@ async function openRecoModal(slug, titleText){
 /* ===== 오프너 바인딩: 썸네일 / 캡션 ===== */
 function bindRecoModalOpeners(){
   const cap = document.getElementById('reco-caption');
-  const fig = document.getElementById('reco-main');
+  const fig = document.getElementById('reco-image');
 
   function currentSlug(){
     const key = state?.lastResult?.key;   // 예: '탐구'/'체계' …
     return KEY_TO_SLUG[key] || 'creative';
   }
-  function currentTitle(){
-    return (cap?.textContent || '콘텐츠').trim();
-  }
+
   const handler = () => openRecoModal(currentSlug());
 
   cap?.addEventListener('click', handler);
-  cap?.addEventListener('keydown', (e)=>{ if (e.key==='Enter'||e.key===' '){ e.preventDefault(); handler(); }});
+  
   fig?.addEventListener('click', handler);
-  fig?.addEventListener('keydown', (e)=>{ if (e.key==='Enter'||e.key===' '){ e.preventDefault(); handler(); }});
+  fig?.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNow(); }
+  });
 }
 
 /* 초기 한 번 */
 bindRecoModalOpeners();
 
 async function warmAssetsForRole(role){
-  // 역할별 로딩/결과/모달 이미지 번들(이미 프로젝트에 있던 빌더 사용)
-  const loadings = (typeof buildLoadingImages === 'function') ? buildLoadingImages(role) : [];
-  const results  = (typeof buildImages === 'function') ? buildImages('result', role) : [];
-  const modals   = (typeof buildImages === 'function') ? buildImages('modal',  role) : [];
-  const thumbs   = (typeof ALL_THUMB_SLUGS !== 'undefined')
-    ? ALL_THUMB_SLUGS.map(s => thumbPath(s)) : [];
+  const loadings = (typeof buildImages==='function') ? buildImages('loading', role) : [];
+  const flowsUrl = (typeof RECO_JSON_URL!=='undefined') ? RECO_JSON_URL : null;
 
-  // flows.json도 미리 캐시
-  const flowsUrl = (typeof RECO_JSON_URL !== 'undefined') ? RECO_JSON_URL : null;
-  requestIdleCallback(async ()=>{
-    try{
-      // 이미지 프리로드(낮은 우선순위, SW가 있으면 캐시에 들어감)
-      await preloadImages([...loadings, ...results, ...modals, ...thumbs], 'low');
+  // ✅ 즉시 SW 캐시에 쑤셔넣기(퀴즈 진행과 병렬)
+  swPrefetchImages(loadings);
+  if (flowsUrl) fetch(flowsUrl).catch(()=>{});
+}
 
-      // flows.json 미리 fetch → SW가 stale-while-revalidate로 캐시
-      if (flowsUrl) fetch(flowsUrl, { cache: 'no-store' }).catch(()=>{});
-    }catch(e){}
-  });
+function swPrefetchImages(urls){
+  if (!urls || !urls.length) return;
+  if (navigator.serviceWorker?.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: 'PREFETCH_IMAGES', urls });
+  } else {
+    // SW 미컨트롤 초기 진입 대비: 일반 fetch로라도 따끈하게
+    urls.forEach(u=> fetch(u).catch(()=>{}));
+  }
 }
 
 
@@ -973,12 +1070,14 @@ document.body.addEventListener('click',(e)=>{
     const role = rc.getAttribute('data-role');
     (async ()=>{
       await loadDataForRole(role);
+      warmAssetsForRole(role);
       startQuiz();
     })();
   }
 });
 
 UI.btnShare?.addEventListener('click', shareResult);
+
 
 window.addEventListener('load', () => {
   const active = document.querySelector('.view.is-active');
@@ -988,7 +1087,29 @@ window.addEventListener('load', () => {
   }
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      // 기존 페이지가 SW로 제어 중일 때만(= 최초 설치 제외) 바로 교체
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && reg.waiting && navigator.serviceWorker.controller) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+    });
+
+    // controllerchange → 딱 1번만 새로고침
+    let refreshed = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshed) return;
+      refreshed = true;
+      location.reload();
+    });
   }
 });
 
@@ -1017,6 +1138,7 @@ document.getElementById('btn-learn')?.addEventListener('click', () => {
 document.getElementById('btn-buy')?.addEventListener('click', () => {
   window.open('https://url.kr/npq3b9','_blank');
 });
+
 
 (async function initFromURL(){
   const q = parseQuery();

@@ -1,5 +1,5 @@
 // sw.js
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.0.1';
 const RUNTIME_IMG = `img-${VERSION}`;
 const RUNTIME_JSON = `json-${VERSION}`;
 const SHELL = `shell-${VERSION}`;
@@ -22,16 +22,44 @@ self.addEventListener('activate', (e)=>{
   self.clients.claim();
 });
 
+self.addEventListener('message', (e)=>{
+  const data = e.data || {};
+  if (data.type === 'PREFETCH_IMAGES' && Array.isArray(data.urls)) {
+    e.waitUntil((async ()=>{
+      const cache = await caches.open(RUNTIME_IMG);
+      await Promise.all(
+        data.urls.map(async (u)=>{
+          try {
+            const req = new Request(u, { cache: 'reload' }); // 네트워크 강제
+            const res = await fetch(req);
+            if (res && res.ok) await cache.put(req, res.clone());
+          } catch(_) {}
+        })
+      );
+    })());
+  }
+});
+
 // helper
 const isImage = (url)=> (url)=> url.pathname.includes('/assets/') &&
                                 /\.(png|jpe?g|gif|webp|svg)$/i.test(url.pathname);
 const isJSON  = (url)=> (url)=> url.pathname.includes('/assets/reco/chart-flows.json');
+const isCSSJS = (url)=> (url)=> /\.(css|js)$/i.test(url.pathname);
 
 self.addEventListener('fetch', (e)=>{
   const url = new URL(e.request.url);
 
   // same-origin만 다룸(타 도메인 CDN이면 패스)
   if (url.origin !== location.origin) return;
+
+  if (isCSSJS(url)) {
+    e.respondWith(fetch(new Request(e.request, { cache:'no-store' })).catch(async ()=>{
+      // 오프라인 시에만 캐시 폴백
+      const cache = await caches.open(SHELL);
+      return (await cache.match(e.request)) || Response.error();
+    }));
+    return;
+  }
 
   // 1) 이미지: Cache First
   if (isImage(url)) {
@@ -61,17 +89,15 @@ self.addEventListener('fetch', (e)=>{
   }
 
   // 3) 앱 쉘: Network First (오프라인 시 캐시)
-  if (e.request.mode === 'navigate' || SHELL_ASSETS.includes(url.pathname)) {
-    e.respondWith((async()=>{
-      try{
-        const res = await fetch(e.request);
-        const cache = await caches.open(SHELL);
-        cache.put(e.request, res.clone());
-        return res;
-      }catch{
-        const cache = await caches.open(SHELL);
-        return (await cache.match(e.request)) || (await cache.match('./index.html'));
-      }
-    })());
-  }
+  if (e.request.mode === 'navigate' || isCSSJS(url)) {
+   e.respondWith(
+     fetch(new Request(e.request, { cache: 'no-store' }))
+       .catch(async () => {
+         // 오프라인 폴백: 캐시에 있으면 그것이라도
+         const cache = await caches.open(SHELL);
+         return (await cache.match(e.request)) || (await cache.match('./index.html'));
+       })
+   );
+   return;
+ }
 });
