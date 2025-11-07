@@ -116,6 +116,8 @@ function showToast(text, { icon = '✓', timeout = 2000 } = {}){
 
 let __resultRaf = null;
 let __resultActionsRO = null;
+let __resultContentRO = null;
+let __vvResizeBound = false;
 
 function getSafeAreaInsetBottomPx() {
   // 캐시
@@ -132,75 +134,100 @@ function getSafeAreaInsetBottomPx() {
   return v;
 }
 
+/** ✅ 겹침 판단을 없애고, 항상 "최소 바닥 패딩"을 보장 (도크 높이×배수 + 여유 + 세이프에어리어) */
 function syncResultBottomSpace(){
   const view = document.getElementById('view-result');
-  if (!view) return;
+  if (!view || view.hidden) return;
 
   const content = view.querySelector('.reco-block');
-  const actions = document.querySelector('.actions.actions--result');
+  const actions = document.querySelector('#result-dock .actions.actions--result');
   const dockBox = document.getElementById('result-dock');
-  if (!content){ return; }
+  if (!content || !actions || !dockBox) return;
 
-  if (!actions){ content.style.paddingBottom = '0px'; return; }
+  // 현재 뷰포트(줌/OSD 포함)
+  const vvH = Math.round(window.visualViewport ? window.visualViewport.height : window.innerHeight);
 
-  const rectC = content.getBoundingClientRect();
+  // 도크/액션 실제 높이(트랜스폼 반영)
   const rectA = actions.getBoundingClientRect();
+  const actionsH = Math.ceil(rectA.height) || Math.ceil(actions.offsetHeight) || 0;
 
-  const actionsH = Math.ceil(rectA.height);
-  const GAP  = 16;             // 버튼 위 시각적 여유
-  const MULT = 2;              // ✅ 요청: 2배 확보
-  const SAFE = (function(){
-    const probe = document.createElement('div');
-    probe.style.cssText = 'position:fixed;bottom:0;left:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
-    document.body.appendChild(probe);
-    const v = parseFloat(getComputedStyle(probe).paddingBottom || '0') || 0;
-    document.body.removeChild(probe);
-    return v;
+  const GAP  = 16;           // 버튼 위 여백
+  const MULT = 2;            // 요청하신 2배
+  const SAFE = getSafeAreaInsetBottomPx();
+
+  // 도크의 bottom 오프셋(px) 반영
+  const bottomOffset = (()=>{
+    const cs = getComputedStyle(dockBox);
+    const v = parseFloat(cs.bottom || '0');
+    return Number.isFinite(v) ? v : 0;
   })();
-  // 도크 자체의 bottom 오프셋(px)도 반영
-  const bottomOffset = dockBox ? (parseFloat(getComputedStyle(dockBox).bottom || '0') || 0) : 0;
 
-  // 겹침 판단: 콘텐츠 바닥이 '도크 상단'보다 아래로 내려오면 겹침
-  const dockTop = window.innerHeight - (actionsH + bottomOffset);
-  const willOverlap = rectC.bottom > dockTop;
+  // ✅ 최소 보장 패딩 = 액션 높이×배수 + 여유 + safe-area + 도크 오프셋
+  const MIN_PAD = Math.max(0, Math.ceil(actionsH * MULT + GAP + SAFE + bottomOffset));
 
-  const pad = willOverlap ? Math.ceil(actionsH * MULT + GAP + SAFE + bottomOffset) : 0;
-  const cur = parseFloat(content.style.paddingBottom || '0') || 0;
-  if (Math.abs(cur - pad) > 0.5) content.style.paddingBottom = pad + 'px';
+  // 현재 패딩
+  const cur = parseFloat(getComputedStyle(content).paddingBottom || '0') || 0;
+
+  if (Math.abs(cur - MIN_PAD) > 0.5) {
+    // box-sizing 영향을 최소화하려면 content는 border-box 권장
+    content.style.paddingBottom = MIN_PAD + 'px';
+  }
 }
 
 function scheduleSyncResultBottomSpace(){
   if (__resultRaf) return;
   __resultRaf = requestAnimationFrame(() => {
     __resultRaf = null;
-    syncResultBottomSpace();
+    // 폰트/이미지 적용 타이밍 보정: 2프레임 보장
+    requestAnimationFrame(syncResultBottomSpace);
   });
 }
 
-// 활성화/해제(뷰 전환 시 사용)
+/** ✅ 활성화: 다양한 소스 변화에 반응 + 초기 2프레임 보정 + fonts.ready */
 function enableResultPaddingSync(){
   scheduleSyncResultBottomSpace();
 
-  // 확대/리사이즈/스크롤에 반응
+  // 리사이즈/스크롤/비주얼뷰포트(줌·OSD) 변화
   window.addEventListener('resize', scheduleSyncResultBottomSpace);
   window.addEventListener('scroll', scheduleSyncResultBottomSpace, { passive: true });
+  if (window.visualViewport && !__vvResizeBound){
+    __vvResizeBound = true;
+    window.visualViewport.addEventListener('resize', scheduleSyncResultBottomSpace, { passive: true });
+  }
 
-  // 결과 이미지/콘텐츠 변화 반영
+  // 결과 이미지 로드/치수 변화
   document.getElementById('result-image')?.addEventListener('load', scheduleSyncResultBottomSpace);
 
-  // ✅ actions 자체의 크기 변화(글자 줄바꿈/버튼 줄 추가/확대 등) 추적
-  const actions = document.querySelector('.actions.actions--result');
+  // actions 자체 크기 변화(텍스트 줄바꿈/확대 등)
+  const actions = document.querySelector('#result-dock .actions.actions--result');
   if (actions) {
     __resultActionsRO = new ResizeObserver(() => scheduleSyncResultBottomSpace());
     __resultActionsRO.observe(actions);
+  }
+
+  // 콘텐츠 블록이 동적으로 바뀌는 경우까지 감지
+  const content = document.querySelector('#view-result .reco-block');
+  if (content) {
+    __resultContentRO = new ResizeObserver(() => scheduleSyncResultBottomSpace());
+    __resultContentRO.observe(content);
+  }
+
+  // 폰트가 늦게 적용될 때(최대화 초기 렌더에서 자주 발생) 한 번 더
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => scheduleSyncResultBottomSpace());
   }
 }
 
 function disableResultPaddingSync(){
   window.removeEventListener('resize', scheduleSyncResultBottomSpace);
   window.removeEventListener('scroll', scheduleSyncResultBottomSpace);
+  if (window.visualViewport && __vvResizeBound){
+    window.visualViewport.removeEventListener('resize', scheduleSyncResultBottomSpace);
+    __vvResizeBound = false;
+  }
   document.getElementById('result-image')?.removeEventListener('load', scheduleSyncResultBottomSpace);
   if (__resultActionsRO) { __resultActionsRO.disconnect(); __resultActionsRO = null; }
+  if (__resultContentRO) { __resultContentRO.disconnect(); __resultContentRO = null; }
 }
 
 function stopPressLoop(){
@@ -1039,7 +1066,6 @@ async function warmAssetsForRole(role){
   const loadings = (typeof buildImages==='function') ? buildImages('loading', role) : [];
   const flowsUrl = (typeof RECO_JSON_URL!=='undefined') ? RECO_JSON_URL : null;
 
-  // ✅ 즉시 SW 캐시에 쑤셔넣기(퀴즈 진행과 병렬)
   swPrefetchImages(loadings);
   if (flowsUrl) fetch(flowsUrl).catch(()=>{});
 }
@@ -1049,7 +1075,6 @@ function swPrefetchImages(urls){
   if (navigator.serviceWorker?.controller) {
     navigator.serviceWorker.controller.postMessage({ type: 'PREFETCH_IMAGES', urls });
   } else {
-    // SW 미컨트롤 초기 진입 대비: 일반 fetch로라도 따끈하게
     urls.forEach(u=> fetch(u).catch(()=>{}));
   }
 }
