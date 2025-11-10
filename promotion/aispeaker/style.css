@@ -251,27 +251,6 @@ body {
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
-.btn-primary {
-    background: #fcd96b;
-    color: #1f2937;
-}
-
-.btn-primary:hover {
-    background: #fae04a;
-    transform: translateY(-3px);
-}
-
-.btn-secondary {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    border: 1.5px solid rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(4px);
-}
-
-.btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: white;
-}
 
 /* === 나머지 섹션 (기존 스타일 유지 + 약간 리파인) === */
 .container {
@@ -536,7 +515,11 @@ footer {
 
     .btn {
     width: 100%;
-    max-width: 300px;
+    max-width: 130px;
+    }
+    .btn.primary {
+      font-size: 1rem;
+      padding: 0.8rem 1.2rem;
     }
 
     nav .nav-links {
@@ -731,7 +714,7 @@ a {
 
 .btn.primary {
     background: var(--yellow);
-    color: #22324a
+    color: #22324a;
 }
 
 .btn.secondary {
@@ -1271,6 +1254,14 @@ footer {
     .plans {
     grid-template-columns: 1fr
     }
+
+    .btn {
+        padding: 0.8rem;
+    }
+    .btn.primary {
+        font-size: 0.8rem;
+        max-width: 100px;
+    }
 }
 
 /* 비디오를 비율에 맞게 조정 */
@@ -1291,8 +1282,9 @@ footer {
 .event .options {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 16px;
-    margin-top: 14px
+    gap: 18px;
+    margin-top: 14px;
+    align-items: stretch
 }
 
 .event-card {
@@ -1308,17 +1300,6 @@ footer {
     margin-bottom: 6px
 }
 
-.badge {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    background: #111827;
-    color: #fff;
-    font-weight: 900;
-    border-radius: 999px;
-    padding: 6px 10px;
-    font-size: .85rem
-}
 
 .badge.yellow {
     background: #f59e0b
@@ -1370,14 +1351,6 @@ footer {
     }
 }
 
-/* 이벤트 카드 높이/정렬 통일 */
-.options {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-    gap: 18px;
-    align-items: stretch;
-    /* 카드 높이 동일화 */
-}
 
 /* 각 카드 내부를 컬럼으로 구성하여 하단 문구를 동일한 레벨에 배치 */
 .options .event-card {
@@ -1439,10 +1412,10 @@ footer {
 
 /* 판매/대여 뱃지 크기와 형태 조정 */
 .plan .badge {
+    color: white;
     position: static;
     display: inline-block;
-    margin-bottom: 8px;
-    padding: 8px 16px;
+    padding: 4px 16px;
     /* 세로 패딩 증가, 가로 패딩 감소 */
     border-radius: 999px;
     font-size: 0.95rem;
@@ -1451,15 +1424,13 @@ footer {
 }
 
 /* 개별 뱃지 색상 */
-.plan .badge[style*="background:#10b981"] {
-    background: #10b981 !important;
+.badge.sale {
+  background-color: #22c55e; /* 판매 - 그린톤 */
 }
 
-/* 판매 */
-.plan .badge[style*="background:#111827"] {
-    background: #111827 !important;
+.badge.rent {
+  background-color: #3b82f6; /* 대여 - 블루톤 */
 }
-
 /* 대여 */
 
 /* ===== #edu-quality 전용 애니메이션 카드 + SVG ===== */
@@ -1471,6 +1442,8 @@ footer {
     text-align: center;
     box-shadow: 0 12px 32px rgba(30, 64, 175, 0.08);
     transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    word-break: keep-all;
+    overflow-wrap: anywhere;
 }
 
 .edu-card p {
@@ -1567,6 +1540,30 @@ footer {
     .promo-grid {
     grid-template-columns: 1fr;
     }
+}
+
+.event-content {
+  background: #FFFDF7;
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* 자식들을 가로 중앙 정렬 */
+}
+
+.event-content .options {
+    display: block;
+    grid-template-columns: none;
+    
+}
+
+.promo-thumbnail {
+  display: block;
+  width: 100%;              /* 기본은 컨테이너 기준 100% */
+  max-width: 520px;         /* 너무 커지지 않도록 상한 */
+  border-radius: 18px;
+  padding: 8px;
+  margin: 0 auto;      /* 가운데 정렬 + 하단 여백 */
 }
 
 .promo-card {
