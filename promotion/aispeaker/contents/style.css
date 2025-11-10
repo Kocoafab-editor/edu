@@ -1,0 +1,198 @@
+
+/* Google Fonts: Noto Sans KR */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
+
+/* --- Global Styles & Variables --- */
+:root {
+    --color-bg: #fffcf7; /* 따뜻한 미색 배경 */
+    --color-text: #333;
+    --color-primary: #3d8bfd;   /* AI-협업: 스마트 블루 */
+    --color-secondary: #28a745; /* SEL: 힐링 그린 */
+    --color-tertiary: #ffc107;  /* 월간: 크리에이티브 옐로우 */
+    --color-accent: #ff6b6b;    /* 금쪽이 포인트 컬러 */
+}
+
+body {
+    font-family: 'Noto Sans KR', sans-serif;
+    margin: 0;
+    padding: 0;
+    
+    color: var(--color-text);
+    line-height: 1.7;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h1, h2, h3 {
+    font-weight: 700;
+    letter-spacing: -1px;
+}
+
+/* --- Header --- */
+.header {
+    text-align: center;
+    padding: 40px 20px;
+    /* border-bottom: 2px solid #eee; */
+}
+.header h1 {
+    font-size: 4rem;
+    margin: 0;
+    font-weight: 900;
+    color: var(--color-primary);
+}
+.header .logo {
+    font-size: 2rem;
+    color: var(--color-accent);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 10px;
+}
+
+/* --- Section 1: Impact (앞면) --- */
+#impact {
+    text-align: center;
+    padding: 20px 20px;
+}
+#impact .main-catchphrase {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    font-weight: 900;
+}
+#impact .sub-catchphrase {
+    font-size: 1.2rem;
+    color: #666;
+    margin-bottom: 60px;
+}
+
+.pillars {
+    display: flex;
+    justify-content: space-around;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+.pillar {
+    flex-basis: 30%;
+    min-width: 260px;
+}
+.pillar h3 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+}
+.pillar blockquote {
+    font-size: 1.1rem;
+    border-left: 4px solid #ddd;
+    padding-left: 20px;
+    margin: 0;
+    font-style: italic;
+    color: #555;
+}
+.pillar .tag {
+    display: inline-block;
+    background-color: #e9ecef;
+    color: #495057;
+    font-size: 0.8rem;
+    padding: 3px 8px;
+    border-radius: 12px;
+    margin-top: 15px;
+    font-weight: 700;
+}
+
+/* --- Section 2: Details (뒷면) --- */
+#details {
+    padding: 80px 20px;
+    /* background-color: #fff; */
+}
+#details .section-title {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+#details .section-subtitle {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #666;
+    margin-bottom: 60px;
+}
+
+.curriculum-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+}
+.curriculum-card {
+    background-color:#fff;
+    border: 1px solid #eee;
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+.curriculum-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+.curriculum-card h3 {
+    font-size: 1.5rem;
+    margin-top: 0;
+    padding-bottom: 15px;
+    border-bottom: 2px solid;
+    display: flex;
+    align-items: center;
+}
+.curriculum-card .card-tagline {
+    font-weight: 700;
+    margin-top:10px;
+    color: #555;
+    min-height: 4.5em; /* 3줄 높이 확보 */
+}
+.curriculum-card ul {
+    padding-left: 20px;
+    padding-bottom: 10px;
+    list-style: '✔ ';
+    color: #444;
+}
+.curriculum-card ul li {
+    margin-top:5px;
+    margin-bottom: 10px;
+}
+.curriculum-card code {
+    background-color: #f1f3f5;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+.curriculum-card .provided {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 20px;
+    border-top: 1px dashed #ddd;
+    padding-top: 15px;
+}
+/* [수정됨] '제공자료' 스타일 */
+.provided-title {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #444;
+}
+
+/* 카드별 색상 */
+#card-ai h3 { border-color: var(--color-primary); color: var(--color-primary); }
+#card-sel h3 { border-color: var(--color-secondary); color: var(--color-secondary); }
+#card-monthly h3 { border-color: var(--color-tertiary); color: var(--color-tertiary); }
+
+/* --- Responsive Design --- */
+@media (max-width: 992px) {
+    .curriculum-grid {
+        grid-template-columns: 1fr;
+    }
+    .pillars {
+        flex-direction: column;
+        align-items: center;
+    }
+}
