@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta property="og:image" content="assets/promotion-main.png" />
+  <meta property="og:image" content="assets/promotion/png/promotion-main.png" />
   <meta property="og:title" content="AI 금쪽이 스피커 | 공식 출시 프로모션" />
   <meta property="og:description" content="AI 금쪽이 스피커 공식 프로모션, 얼리버드 혜택으로 안전한 교실 AI 학습을 시작하세요." />
   <meta property="og:url" content="https://edu.kocoafab.cc/promotion/aispeaker/" />
@@ -17,6 +17,11 @@
     rel="stylesheet">
 
   <link rel="stylesheet" href="style.css" />
+
+  <link rel="preload" as="image" href="assets/promotion/webp/promotion1_700px.webp">
+  <link rel="preload" as="image" href="assets/promotion/webp/promotion2_700px.webp">
+  <link rel="preload" as="image" href="assets/promotion/webp/promotion3_700px.webp">
+
 </head>
 
 <body>
@@ -24,15 +29,87 @@
   <!-- 기존 배경 레이어 -->
   <div class="page-bg" aria-hidden="true"></div>
   <div class="bg-elephants" aria-hidden="true">
-    <img src="assets/golden_kids.png" class="e1" alt="">
-    <img src="assets/golden_kids2.png" class="e2" alt="">
-    <img src="assets/golden_kids3.png" class="e3" alt="">
-    <img src="assets/golden_kids4.png" class="e4" alt="">
-    <img src="assets/golden_kids5.png" class="e5" alt="">
-    <img src="assets/golden_kids6.png" class="e6" alt="">
-    <img src="assets/golden_kids7.png" class="e7" alt="">
-    <img src="assets/golden_kids8.png" class="e8" alt="">
-    <img src="assets/golden_kids.png" class="e1c" alt="">
+    <picture class="e1">
+      <source srcset="assets/characters/webp/golden_kids.webp" type="image/webp">
+      <img
+        src="assets/characters/png/golden_kids.png"
+        alt=""
+        loading="lazy"
+        decoding="async"
+        aria-hidden="true">
+    </picture>
+    <picture class="e2">
+      <source srcset="assets/characters/webp/golden_kids2.webp" type="image/webp">
+      <img
+        src="assets/characters/png/golden_kids2.png"
+        alt=""
+        loading="lazy"
+        decoding="async"
+        aria-hidden="true">
+    </picture>
+    <picture class="e3">
+      <source srcset="assets/characters/webp/golden_kids3.webp" type="image/webp">
+      <img
+        src="assets/characters/png/golden_kids3.png"
+        alt=""
+        loading="lazy"
+        decoding="async"
+        aria-hidden="true">
+    </picture>
+    <picture class="e4">
+      <source srcset="assets/characters/webp/golden_kids4.webp" type="image/webp">
+      <img
+        src="assets/characters/png/golden_kids4.png"
+        alt=""
+        loading="lazy"
+        decoding="async"
+        aria-hidden="true">
+    </picture>
+    <picture class="e5">
+      <source srcset="assets/characters/webp/golden_kids5.webp" type="image/webp">
+      <img
+        src="assets/characters/png/golden_kids5.png"
+        alt=""
+        loading="lazy"
+        decoding="async"
+        aria-hidden="true">
+    </picture>
+    <picture class="e6">
+      <source srcset="assets/characters/webp/golden_kids6.webp" type="image/webp">
+      <img
+        src="assets/characters/png/golden_kids6.png"
+        alt=""
+        loading="lazy"
+        decoding="async"
+        aria-hidden="true">
+    </picture>
+    <picture class="e7">
+      <source srcset="assets/characters/webp/golden_kids7.webp" type="image/webp">
+      <img
+        src="assets/characters/png/golden_kids7.png"
+        alt=""
+        loading="lazy"
+        decoding="async"
+        aria-hidden="true">
+    </picture>
+    <picture class="e8">
+      <source srcset="assets/characters/webp/golden_kids8.webp" type="image/webp">
+      <img
+        src="assets/characters/png/golden_kids8.png"
+        alt=""
+        loading="lazy"
+        decoding="async"
+        aria-hidden="true">
+    </picture>
+    <picture class="e1c">
+      <source srcset="assets/characters/webp/golden_kids.webp" type="image/webp">
+      <img
+        src="assets/characters/png/golden_kids.png"
+        alt=""
+        loading="lazy"
+        decoding="async"
+        aria-hidden="true">
+    </picture>
   </div>
 
   <!-- NAV -->
@@ -75,15 +152,124 @@
       <p class="section-desc"> 12월 연말까지 먼저 구매하시면 아래 혜택들을 모두 받으실 수 있습니다.</p>
 
       <div class="event-content">
-        <img class="promo-thumbnail" src="assets/promotion-main.png">
+        <picture class="promo-thumbnail-wrap">
+          <source
+            type="image/webp"
+            srcset="
+              assets/promotion/webp/promotion-main.webp 1080w
+            ">
+
+          <source
+            type="image/png"
+            srcset="
+              assets/promotion/png/promotion-main.png 1080w
+            ">
+
+          <img
+            class="promo-thumbnail"
+            src="assets/promotion/png/promotion-main.png"
+            alt="AI 금쪽이 스피커 프로모션 메인 이미지"
+            sizes="(max-width: 640px) 100vw,
+                  (max-width: 1024px) 505px,
+                  505px"
+            loading="lazy"
+            decoding="async">
+        </picture>
         <div class="options">
           <div class="promo-grid">
-            <div class="promo-card"><img class="js-promo-modal" src="assets/promotion1.png" data-modal-src="assets/promotion1.png"
-                alt="프로모션 1"></div>
-            <div class="promo-card"><img class="js-promo-modal" src="assets/promotion2.png" data-modal-src="assets/promotion2.png"
-                alt="프로모션 2"></div>
-            <div class="promo-card"><img class="js-promo-modal" src="assets/promotion3.png" data-modal-src="assets/promotion3.png"
-                alt="프로모션 3"></div>
+            <div class="promo-card">
+              <picture>
+                <source
+                  type="image/webp"
+                  srcset="
+                    assets/promotion/webp/promotion1_250px.webp 250w,
+                    assets/promotion/webp/promotion1_400px.webp 400w,
+                    assets/promotion/webp/promotion1_700px.webp 700w
+                  ">
+
+                <source
+                  type="image/png"
+                  srcset="
+                    assets/promotion/png/promotion1_250px.png 250w,
+                    assets/promotion/png/promotion1_400px.png 400w,
+                    assets/promotion/png/promotion1_700px.png 700w
+                  ">
+
+                <img
+                  class="js-promo-modal"
+                  src="assets/promotion/png/promotion1_250px.png"
+                  alt="프로모션 1"
+                  sizes="(max-width: 640px) 100vw,
+                        (max-width: 1100px) 33vw,
+                        240px"
+                  loading="lazy"
+                  decoding="async"
+                  data-modal-src="assets/promotion/webp/promotion1_700px.webp"
+                  data-modal-src-fallback="assets/promotion/png/promotion1_700px.png">
+              </picture>
+            </div>
+            <div class="promo-card">
+              <picture>
+                <source
+                  type="image/webp"
+                  srcset="
+                    assets/promotion/webp/promotion2_250px.webp 250w,
+                    assets/promotion/webp/promotion2_400px.webp 400w,
+                    assets/promotion/webp/promotion2_700px.webp 700w
+                  ">
+
+                <source
+                  type="image/png"
+                  srcset="
+                    assets/promotion/png/promotion2_250px.png 250w,
+                    assets/promotion/png/promotion2_400px.png 400w,
+                    assets/promotion/png/promotion2_700px.png 700w
+                  ">
+
+                <img
+                  class="js-promo-modal"
+                  src="assets/promotion/png/promotion2_250px.png"
+                  alt="프로모션 1"
+                  sizes="(max-width: 640px) 100vw,
+                        (max-width: 1100px) 33vw,
+                        240px"
+                  loading="lazy"
+                  decoding="async"
+                  data-modal-src="assets/promotion/webp/promotion2_700px.webp"
+                  data-modal-src-fallback="assets/promotion/png/promotion2_700px.png">
+              </picture>
+            </div>
+            <div class="promo-card">
+              <picture>
+                <source
+                  type="image/webp"
+                  srcset="
+                    assets/promotion/webp/promotion3_250px.webp 250w,
+                    assets/promotion/webp/promotion3_400px.webp 400w,
+                    assets/promotion/webp/promotion3_700px.webp 700w
+                  ">
+
+                <source
+                  type="image/png"
+                  srcset="
+                    assets/promotion/png/promotion3_250px.png 250w,
+                    assets/promotion/png/promotion3_400px.png 400w,
+                    assets/promotion/png/promotion3_700px.png 700w
+                  ">
+
+                <img
+                  class="js-promo-modal"
+                  src="assets/promotion/png/promotion3_250px.png"
+                  alt="프로모션 1"
+                  sizes="(max-width: 640px) 100vw,
+                        (max-width: 1100px) 33vw,
+                        240px"
+                  loading="lazy"
+                  decoding="async"
+                  data-modal-src="assets/promotion/webp/promotion3_700px.webp"
+                  data-modal-src-fallback="assets/promotion/png/promotion3_700px.png">
+              </picture>
+            </div>
           </div>
         </div>
         <p class="muted" style="margin-top:25px;">
@@ -385,9 +571,24 @@
             <p class="muted" style="margin-bottom:10px;">
               금쪽이가 알려주는 나의 학습·수업 스타일 유형을 알아보세요!<br>
             </p>
-            <a href="https://edu.kocoafab.cc/quest" target="_blank" rel="noopener noreferrer" class="clickable-quest" title="클릭하여 금쪽이 유형테스트로 이동"><img src="assets/quest.png"
-                alt="나만의 금쪽이 찾기 테스트"
-                style="width:85%; max-width:520px; height:auto; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.08);"></a>
+            <a href="https://edu.kocoafab.cc/quest"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="clickable-quest"
+              title="클릭하여 금쪽이 유형테스트로 이동">
+
+              <picture class="clickable-quest-picture">
+                <!-- WebP 우선 -->
+                <source srcset="assets/quest.webp" type="image/webp">
+
+                <!-- PNG fallback (있으면 유지, 없으면 삭제 가능) -->
+                <img
+                  src="assets/quest.png"
+                  alt="나만의 금쪽이 찾기 테스트"
+                  loading="lazy"
+                  decoding="async">
+              </picture>
+            </a>
           </div>
         </div>
       </div>

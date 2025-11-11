@@ -577,6 +577,7 @@ footer {
 .e1 {
     top: 8%;
     left: 6%;
+    position: absolute;
     width: 180px;
     --rot: -6deg;
     --dur: 22s;
@@ -587,6 +588,7 @@ footer {
 .e2 {
     top: 18%;
     right: 8%;
+    position: absolute;
     width: 200px;
     --rot: 8deg;
     --dur: 24s;
@@ -596,6 +598,7 @@ footer {
 .e3 {
     top: 32%;
     left: 12%;
+    position: absolute;
     width: 150px;
     --rot: 6deg;
     --dur: 21s;
@@ -605,6 +608,7 @@ footer {
 .e4 {
     top: 40%;
     right: 14%;
+    position: absolute;
     width: 170px;
     --rot: -10deg;
     --dur: 23s;
@@ -614,6 +618,7 @@ footer {
 .e5 {
     top: 60%;
     left: 8%;
+    position: absolute;
     width: 140px;
     --rot: 9deg;
     --dur: 20s;
@@ -622,6 +627,7 @@ footer {
 .e6 {
     top: 58%;
     right: 10%;
+    position: absolute;
     width: 160px;
     --rot: -4deg;
     --dur: 20s;
@@ -630,6 +636,7 @@ footer {
 .e7 {
     bottom: 14%;
     left: 18%;
+    position: absolute;
     width: 200px;
     --rot: 12deg;
     --dur: 26s;
@@ -639,6 +646,7 @@ footer {
 .e8 {
     bottom: 10%;
     right: 20%;
+    position: absolute;
     width: 220px;
     --rot: -8deg;
     --dur: 28s;
@@ -649,12 +657,28 @@ footer {
 .e1c {
     top: 42%;
     left: 44%;
+    position: absolute;
     width: 260px;
     opacity: .18;
     --rot: 0deg;
     --dur: 25s;
     --delay: -5s;
 }
+
+.e1 img,
+.e2 img,
+.e3 img,
+.e4 img,
+.e5 img,
+.e6 img,
+.e7 img,
+.e8 img,
+.e1c img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
 
 @media (max-width:980px) {
 
@@ -1808,4 +1832,24 @@ box-shadow: 0 12px 28px rgba(30,64,175,.16);
 }
 .btn-outline-blue:active{
 transform: translateY(0);
+}
+
+.clickable-quest {
+  display: flex;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.clickable-quest-picture {
+  display: block;
+  width: 85%;
+  max-width: 520px;
+}
+
+.clickable-quest-picture img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
 }
