@@ -263,6 +263,13 @@ body.is-loading .top-progress { display: none; }
   color: var(--primary-fg); 
 }
 
+@media (max-width: 435px) {
+  .btn.btn--sm{
+    width: 30%;
+    font-size: 0.82rem;
+  }
+}
+
 .question { 
  font-size:clamp(26px,4vw,36px); 
  text-align:center; 
