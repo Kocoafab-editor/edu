@@ -594,17 +594,7 @@
       nav.classList.toggle('scrolled', window.scrollY > 50);
     });
 
-    // 비디오 음소거 해제
-    const video = document.querySelector('.hero-video');
-    if (video) {
-      const enableSound = () => {
-        video.muted = false;
-        document.removeEventListener('click', enableSound);
-        document.removeEventListener('touchstart', enableSound);
-      };
-      document.addEventListener('click', enableSound, { once: true });
-      document.addEventListener('touchstart', enableSound, { once: true });
-    }
+
 
     // 햄버거 메뉴
     const btn = document.getElementById('menuBtn');
@@ -614,22 +604,7 @@
       btn.setAttribute('aria-expanded', opened ? 'true' : 'false');
     });
 
-    // 비디오 음소거 해제: 브라우저 정책 때문에 사용자 제스처 필요함.
-    (function () {
-      const vid = document.querySelector('.media video');
-      if (!vid) return;
-      function enableSound() {
-        try {
-          vid.muted = false;
-          vid.volume = 1;
-          vid.play().catch(() => { /* 재생 실패 무시 */ });
-        } catch (e) { }
-        window.removeEventListener('click', enableSound);
-        window.removeEventListener('keydown', enableSound);
-      }
-      window.addEventListener('click', enableSound, { once: true });
-      window.addEventListener('keydown', enableSound, { once: true });
-    })();
+
   </script>
 
   <script>
