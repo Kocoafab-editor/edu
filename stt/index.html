@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>음성인식 데이터 전송 - 오렌지보드/ESP32/마이크로비트</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="../static/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="../static/favicon/favicon-96x96.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../static/favicon/favicon-16x16.png">
+  <!-- 공통 스타일 -->
+  <!-- 이 페이지 스타일 -->
+  <link rel="stylesheet" href="../common/header.css" />
+  <link rel="stylesheet" href="../common/navigation.css" />
+  <link rel="stylesheet" href="../common/template.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="ble-interface">
+  <div class="header">
+    <a href="../index.html" class="back-btn" title="메인으로 돌아가기">&lt; 메인화면</a>
+
+    <div class="header-content">
+      <!-- 상단 컨트롤: 우측 접기/햄버거 -->
+      <div class="header-top-controls">
+        <div class="right-controls">
+          <button id="headerToggleBtn" class="btn-small header-toggle-btn" title="설정 접기/펼치기"
+            aria-label="설정 접기/펼치기"></button>
+          <button class="hamburger-btn" id="hamburgerBtn" aria-label="메뉴 열기">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 타이틀/설명 -->
+      <div class="header-title-desc">
+        <h1 id="headerTitle">음성 인식 데이터 전송</h1>
+        <p>오렌지보드/ESP32/마이크로비트와의 블루투스/시리얼 연결 인터페이스</p>
+        <p class="mobile-hint" style="display:none; color:#4a5568; margin-top:6px;">우측 상단의 햄버거 버튼을 눌러 설정하세요.</p>
+      </div>
+
+      <!-- ===== 2열: 좌(디바이스 선택/에디터) · 우(연결 모드/연결 버튼) ===== -->
+      <div class="header-settings-bar">
+        <!-- 좌측 컬럼 -->
+        <div class="header-settings-col header-settings-left">
+          <div class="settings-title">디바이스 선택</div>
+          <div class="device-select-container">
+            <select id="deviceSelect" class="device-select" aria-label="디바이스 선택">
+              <option value="esp32" selected>ESP32</option>
+              <option value="orange">오렌지보드</option>
+              <option value="microbit">마이크로비트</option>
+            </select>
+          </div>
+          <button id="editorButton" class="btn" type="button">에디터/IDE 열기</button>
+        </div>
+
+        <!-- 우측 컬럼: 토글 + 연결 버튼( @index.html 구성과 동일 ) -->
+        <div class="header-settings-col header-settings-right">
+          <div class="settings-title">디바이스 연결</div>
+          <div class="toggle-container" style="margin-bottom:10px;">
+            <span class="toggle-label">시리얼 통신</span>
+            <div class="toggle-switch" id="connectionToggle" role="switch" aria-checked="false" title="시리얼 ↔ 블루투스 전환">
+              <div class="toggle-slider"></div>
+            </div>
+            <span class="toggle-label">블루투스</span>
+          </div>
+          <button id="connectButton" class="btn">
+            <span class="status-indicator status-disconnected"></span>
+            <span id="connectBtnText">연결하기</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 모바일: 햄버거 버튼 & 오버레이 -->
+      <div class="nav-overlay" id="navOverlay">
+        <div class="nav-overlay-content">
+          <div id="overlaySettingsMount"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 본문 -->
+  <div class="container">
+    <div class="main-section">
+      <!-- === STT 전용 UI === -->
+      <div class="content-section stt-ui">
+        <div class="stt-section">
+          <div class="status-panel">
+            <div class="stt-title">실시간 상태</div>
+
+            <div class="status-item">
+              <span class="status-label" id="sttConnectionTypeLabel">연결 방식:</span>
+              <span id="serialStatus" class="status-value status-disconnected">연결 안됨</span>
+            </div>
+
+            <div class="status-item">
+              <span class="status-label">현재 디바이스:</span>
+              <span id="currentDevice" class="status-value status-ready">ESP32</span>
+            </div>
+
+            <div class="status-item">
+              <span class="status-label">음성 인식결과:</span>
+              <span id="sttText" class="status-value status-waiting">-</span>
+            </div>
+
+            <div class="status-item">
+              <span class="status-label">매칭 결과:</span>
+              <span class="status-value">
+                <span id="matchKey">-</span> → <strong id="matchValue">-</strong>
+              </span>
+            </div>
+          </div>
+
+          <div class="control-panel">
+            <div class="control-panel-track">
+              <div>
+              <div class="stt-title">
+                <label for="sttLang" class="control-title">인식 언어</label>
+              </div>
+              <div class="language-select-container">
+                <select id="sttLang" class="language-select">
+                  <option value="ko-KR" selected>한국어</option>
+                  <option value="en-US">English</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button id="sttToggleBtn" class="btn">음성 인식 시작</button>
+            </div>
+            <div class="stt-visualizer" id="sttVisualizer" aria-hidden="true">
+              <canvas id="sttWaveCanvas" width="260" height="60"></canvas>
+            </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="kv-section">
+          <div class="kv-section-track">
+          <div class="kv-header">
+            <div>
+              <p class="kv-eyebrow">Keyword mapping</p>
+              <div class="stt-title">음성 인식 문구 관리</div>
+            </div>
+            <div class="kv-toolbar">
+              <button id="kvEditToggle" class="btn btn-small" type="button">편집</button>
+            </div>
+          </div>
+
+          <form id="kvForm" class="kv-form" onsubmit="event.preventDefault();">
+            <div class="kv-field">
+              <label for="kvKey" class="status-label">음성 문구</label>
+              <input id="kvKey" class="form-input" type="text" placeholder="예: 전등 켜 / 앞으로 가">
+            </div>
+            <div class="kv-field">
+              <label for="kvValue" class="status-label">전송 데이터</label>
+              <input id="kvValue" class="form-input" type="text" placeholder="예: LED_ON / FORWARD">
+            </div>
+            <div class="kv-field kv-submit">
+              <button id="addPairBtn" class="btn" type="button">추가</button>
+            </div>
+            <p class="kv-note" id="kvCharLimitNote" aria-live="polite">인식 문구와 전송 데이터는 15자 이내로 입력하세요.</p>
+          </form>
+
+          <div class="kv-panel">
+            <div class="kv-table-card">
+              <table id="kvTable" class="kv-table">
+                <thead>
+                  <tr>
+                    <th class="col-index"></th>
+                    <th>인식 문구</th>
+                    <th>전송 데이터</th>
+                    <th class="col-actions">동작</th>
+                  </tr>
+                </thead>
+                <tbody id="kvTbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="kv-actions">
+            <input id="importFile" type="file" accept="application/json" style="display:none;">
+            <div>
+              <button id="importBtn" class="btn btn-secondary" type="button">명령어 불러오기</button>
+              <button id="exportBtn" class="btn btn-secondary" type="button">명령어 내보내기</button>
+            </div>
+            <button id="resetBtn" class="btn btn-danger btn-small" type="button">초기화</button>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- === /STT 전용 UI === -->
+  </div>
+  </div>
+
+  <!-- 공용 커넥터 (시리얼/블루투스) -->
+  <script src="../common/connection/ble.js"></script>
+  <script src="../common/connection/app_state.js"></script>
+  <script src="../common/connection/serial_adapter.js"></script>
+  <script src="../common/connection/connection_manager.js"></script>
+  <script src="app.js"></script>
+
+</body>
+
+</html>

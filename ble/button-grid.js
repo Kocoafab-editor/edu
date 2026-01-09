@@ -1,5 +1,5 @@
 // 전역 BLE 연결 및 알림 사용
-const getBle = () => window.bleConnection;
+const getBle = () => window.AppState?.ble?.manager || window.bleManager || window.bleConnection;
 const notify = (msg, type) => (window.showNotification ? window.showNotification(msg, type) : console.log(`[${type||'info'}] ${msg}`));
 
 class ButtonGridManager {

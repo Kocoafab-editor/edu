@@ -5,7 +5,8 @@
   'use strict';
 
   class BLEManager {
-    constructor() {
+    constructor(appState) {
+      this.app = appState || global.AppState || null;
       this.device = null;
       this.server = null;
       this.service = null;
@@ -19,6 +20,12 @@
       this.deviceMode = 'esp32'; // 'esp32' | 'orange' | 'microbit'
       this._onReceive = null;
       this._onStatusChange = null; // (text, status) => void, status: 'disconnected' | 'connecting' | 'connected'
+      this._lineBuf = '';
+      this._decoder = new TextDecoder('utf-8');
+
+      if (this.app && typeof this.app.setBleManager === 'function') {
+        try { this.app.setBleManager(this); } catch (_) {}
+      }
     }
 
     setMode(mode) {
@@ -45,15 +52,43 @@
         if (this.deviceMode === 'esp32') {
           options = { filters: [ { services: [ this.serviceUUID ] } ] };
         } else if (this.deviceMode === 'orange') {
-          options = { filters: [ { name: 'ARDUINO_NUS' }, { namePrefix: 'ARDUINO' } ], optionalServices: [ this.serviceUUID ] };
+          options = { filters: [ { services: [ this.serviceUUID ] } ], optionalServices: [ this.serviceUUID ] };
         } else { // microbit
           options = { filters: [ { namePrefix: 'BBC micro:bit' }, { namePrefix: 'micro:bit' } ], optionalServices: [ this.serviceUUID ] };
         }
 
-        this.device = await navigator.bluetooth.requestDevice(options);
-        this.device.addEventListener('gattserverdisconnected', () => this._onDisconnected());
+        const tryReconnectExisting = async () => {
+          if (!this.device) return false;
+          try {
+            if (!this.device.gatt.connected) {
+              await this.device.gatt.connect();
+            }
+            this.device.addEventListener('gattserverdisconnected', () => this._onDisconnected());
+            return true;
+          } catch (_) {
+            return false;
+          }
+        };
 
-        this.server = await this.device.gatt.connect();
+        let hasDevice = await tryReconnectExisting();
+        if (!hasDevice) {
+          try {
+            this.device = await navigator.bluetooth.requestDevice(options);
+          } catch (err) {
+            if (this.deviceMode === 'orange' && err && err.name === 'NotFoundError') {
+              this.device = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: true,
+                optionalServices: [ this.serviceUUID ],
+              });
+            } else {
+              throw err;
+            }
+          }
+          this.device.addEventListener('gattserverdisconnected', () => this._onDisconnected());
+          await this.device.gatt.connect();
+        }
+
+        this.server = this.device.gatt;
         this.service = await this.server.getPrimaryService(this.serviceUUID);
 
         if (this.deviceMode === 'microbit') {
@@ -82,6 +117,7 @@
       } catch (error) {
         this._emitStatus('연결 실패', 'disconnected');
         this._reset();
+        try { this.device?.gatt?.disconnect?.(); } catch (_) {}
         throw error;
       }
     }
@@ -100,14 +136,12 @@
           }
         } catch (_) {}
 
-        if (this.device) {
-          if (this.device.gatt.connected) {
-            await this.device.gatt.disconnect();
-          }
+        if (this.device?.gatt?.connected) {
+          try { await this.device.gatt.disconnect(); } catch (_) {}
         }
+        this._reset();
       } finally {
         this._emitStatus('연결 끊김', 'disconnected');
-        this._reset();
       }
     }
 
@@ -119,7 +153,7 @@
       }
       const encoder = new TextEncoder();
       // ESP32(BLE)에는 델리미터를 붙이지 않음. 그 외에는 LF 사용
-      const eol = this.deviceMode === 'esp32' ? '' : '\n';
+      const eol = this._getEol();
       const data = encoder.encode(msg + eol);
       if (this.deviceMode === 'microbit') {
         await this._writeChunked(this.rxCharacteristic, data);
@@ -131,19 +165,56 @@
       }
     }
 
+    _getEol() {
+      if (this.app && typeof this.app.eol === 'string') {
+        return this.app.eol;
+      }
+      return this.deviceMode === 'esp32' ? '' : '\n';
+    }
+
     async _writeChunked(characteristic, bytes) {
       const CHUNK = 20;
       for (let i = 0; i < bytes.length; i += CHUNK) {
         const slice = bytes.slice(i, i + CHUNK);
+        const hasWriteWithResponse = typeof characteristic.writeValueWithResponse === 'function';
+        const hasWriteWithoutResponse = typeof characteristic.writeValueWithoutResponse === 'function';
+        const canWriteWithResponse = characteristic.properties && characteristic.properties.write;
+        const canWriteWithoutResponse = characteristic.properties && characteristic.properties.writeWithoutResponse;
+
+        const writeWithResponse = async (value) => {
+          if (!hasWriteWithResponse) {
+            throw new Error('writeValueWithResponse is not supported.');
+          }
+          return characteristic.writeValueWithResponse(value);
+        };
+
+        const writeWithoutResponse = async (value) => {
+          if (!hasWriteWithoutResponse) {
+            throw new Error('writeValueWithoutResponse is not supported.');
+          }
+          return characteristic.writeValueWithoutResponse(value);
+        };
+
         try {
-          if (characteristic.properties && characteristic.properties.write) {
-            await characteristic.writeValue(slice);
+          if (canWriteWithResponse && hasWriteWithResponse) {
+            await writeWithResponse(slice);
+          } else if (canWriteWithoutResponse && hasWriteWithoutResponse) {
+            await writeWithoutResponse(slice);
+          } else if (hasWriteWithoutResponse) {
+            await writeWithoutResponse(slice);
+          } else if (hasWriteWithResponse) {
+            await writeWithResponse(slice);
           } else {
-            await characteristic.writeValueWithoutResponse(slice);
+            throw new Error('No supported write method on characteristic.');
           }
         } catch (e) {
-          try { await characteristic.writeValueWithoutResponse(slice); }
-          catch(e2) { await characteristic.writeValue(slice); }
+          if (hasWriteWithoutResponse) {
+            await writeWithoutResponse(slice);
+          } else if (hasWriteWithResponse) {
+            await writeWithResponse(slice);
+          } else {
+            throw e;
+          }
         }
         await new Promise(r => setTimeout(r, 5));
       }
@@ -152,10 +223,18 @@
     _handleNotify(event) {
       try {
         const value = event.target.value;
-        const decoder = new TextDecoder('utf-8');
-        const text = decoder.decode(value).trim();
-        if (text) {
-          if (typeof this._onReceive === 'function') this._onReceive(text);
+        if (!value) return;
+        const chunk = this._decoder.decode(value);
+        if (!chunk) return;
+        this._lineBuf += chunk.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        let idx;
+        while ((idx = this._lineBuf.indexOf('\n')) >= 0) {
+          const line = this._lineBuf.slice(0, idx).replace(/\r$/, '');
+          this._lineBuf = this._lineBuf.slice(idx + 1);
+          const text = line.trim();
+          if (text && typeof this._onReceive === 'function') {
+            this._onReceive(text);
+          }
         }
       } catch (_) {}
     }
@@ -171,6 +250,7 @@
       this.service = null;
       this.txCharacteristic = null;
       this.rxCharacteristic = null;
+      this._lineBuf = '';
     }
 
     _emitStatus(text, status) {
@@ -184,5 +264,3 @@
   global.BLE.BLEManager = BLEManager;
 
 })(window);
-
-

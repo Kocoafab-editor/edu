@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>센서 데이터 대시보드</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="../static/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="../static/favicon/favicon-96x96.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../static/favicon/favicon-16x16.png">
+  <link rel="stylesheet" href="../common/header.css" />
+  <link rel="stylesheet" href="../common/navigation.css" />
+  <link rel="stylesheet" href="../common/template.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="ble-interface theme-esp32">
+  <div class="header">
+    <a href="../index.html" class="back-btn" title="메인으로 돌아가기">&lt; 메인 화면</a>
+
+    <div class="header-content">
+      <div class="header-top-controls">
+        <div class="right-controls">
+          <button id="headerToggleBtn" class="btn-small header-toggle-btn" title="설정 접기/펼치기" aria-label="설정 접기/펼치기"></button>
+          <button class="hamburger-btn" id="hamburgerBtn" aria-label="메뉴 열기">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="header-title-desc">
+        <h1 id="headerTitle">센서 데이터 대시보드</h1>
+        <p>ESP32/오렌지보드/마이크로비트 데이터를 그래프로 확인합니다.</p>
+        <p class="mobile-hint" style="display:none; color:#4a5568; margin-top:6px;">오른쪽 상단 메뉴 버튼을 눌러 설정을 확인하세요.</p>
+      </div>
+
+      <div class="header-settings-bar">
+        <div class="header-settings-col header-settings-left">
+          <div class="settings-title">디바이스 선택</div>
+          <div class="device-select-container">
+            <select id="deviceSelect" class="device-select" aria-label="디바이스 선택">
+              <option value="esp32" selected>ESP32</option>
+              <option value="orange">오렌지보드</option>
+              <option value="microbit">마이크로비트</option>
+            </select>
+          </div>
+          <button id="editorButton" class="btn" type="button">IDE 열기</button>
+        </div>
+
+        <div class="header-settings-col header-settings-right">
+          <div class="settings-title">디바이스 연결</div>
+          <div class="toggle-container" style="margin-bottom:10px;">
+            <span class="toggle-label">시리얼</span>
+            <div class="toggle-switch" id="connectionToggle" role="switch" aria-checked="false" title="시리얼/블루투스 전환">
+              <div class="toggle-slider"></div>
+            </div>
+            <span class="toggle-label">블루투스</span>
+          </div>
+          <button id="connectButton" class="btn">
+            <span class="status-indicator status-disconnected"></span>
+            <span id="connectBtnText">연결하기</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="nav-overlay" id="navOverlay">
+        <div class="nav-overlay-content">
+          <div id="overlaySettingsMount"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="main-section">
+      <div class="main-top">
+        <div class="panel-card connection-card">
+          <p class="eyebrow">Connection</p>
+          <h2>기기 상태</h2>
+          <div class="status-badges">
+            <div class="status-chip">
+              <span class="label">연결 방식</span>
+              <span id="connectionTypeValue" class="status-value status-ready">시리얼</span>
+            </div>
+            <div class="status-chip">
+              <span class="label">연결 상태</span>
+              <span id="serialStatus" class="status-value status-disconnected">연결 안 됨</span>
+            </div>
+            <div class="status-chip">
+              <span class="label">현재 디바이스</span>
+              <span id="currentDevice" class="status-value status-ready">ESP32</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card data-card">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Data</p>
+              <h3>데이터 관리</h3>
+            </div>
+          </div>
+          <div class="data-actions">
+            <div class="data-block">
+              <h4>xls/xlsx</h4>
+              <div class="data-buttons">
+                <button id="exportCsvBtn" class="btn btn-secondary btn-small" type="button" disabled>내보내기</button>
+                <button id="importCsvBtn" class="btn btn-secondary btn-small" type="button" disabled>가져오기</button>
+              </div>
+            </div>
+            <div class="data-block">
+              <h4>프로젝트</h4>
+              <div class="data-buttons">
+                <button id="newProjectBtn" class="btn btn-secondary btn-small" type="button" disabled>새 프로젝트</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="graphs-shell">
+        <section class="graphs-panel">
+          <div class="graphs-header">
+            <div>
+              <h2>실시간 센서 그래프</h2>
+              <p class="sub">데이터는 오른쪽으로 계속 누적되며, 스크롤을 옮기면 자동 추적이 멈춥니다.</p>
+            </div>
+            <button id="groupPanelToggleBtn" class="btn btn-secondary btn-small" type="button">그룹 패널</button>
+          </div>
+          <div id="graphList" class="graphs-list"></div>
+        </section>
+        <div id="groupPanelOverlay" class="group-panel-overlay"></div>
+        <aside id="groupPanelDrawer" class="group-panel-drawer" aria-hidden="true">
+          <div class="panel-card group-panel-card">
+            <div class="panel-header group-panel-header">
+              <div>
+                <p class="eyebrow">Groups</p>
+                <h3>센서 그룹</h3>
+              </div>
+              <div class="group-panel-controls">
+                <button id="editGroupsBtn" class="btn btn-small" type="button">편집</button>
+                <button id="closeGroupPanelBtn" class="btn btn-secondary btn-small" type="button">닫기</button>
+              </div>
+            </div>
+            <div id="groupList" class="group-list"></div>
+            <div class="group-actions">
+              <button id="addGroupBtn" class="btn btn-secondary btn-small" type="button">그룹 추가</button>
+            </div>
+            <p class="helper small">MCU에서 보내는 라벨과 동일하게 입력하면 해당 그룹으로 값이 누적됩니다.</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div id="refreshModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="refreshModalTitle">
+      <h3 id="refreshModalTitle">새로고침 확인</h3>
+      <p>현재 기기가 연결되어 있습니다. 새로고침을 하면 연결이 끊깁니다. 진행하시겠습니까?</p>
+      <div class="modal-actions">
+        <button id="refreshCancelBtn" class="btn btn-secondary btn-small" type="button">취소</button>
+        <button id="refreshConfirmBtn" class="btn btn-small" type="button">새로고침</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="newProjectModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="newProjectModalTitle">
+      <h3 id="newProjectModalTitle">새 프로젝트 확인</h3>
+      <p>모든 측정 데이터가 삭제됩니다. 새 프로젝트를 시작하시겠습니까?</p>
+      <div class="modal-actions">
+        <button id="newProjectCancelBtn" class="btn btn-secondary btn-small" type="button">취소</button>
+        <button id="newProjectConfirmBtn" class="btn btn-small" type="button">시작</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="exportModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card modal-wide" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
+      <h3 id="exportModalTitle">XLSX 내보내기</h3>
+      <p>저장할 그룹을 선택하세요. 여러 그룹은 하나의 파일 또는 개별 파일로 저장할 수 있습니다.</p>
+      <div class="modal-list">
+        <div class="modal-check-row">
+          <label class="modal-check">
+            <input id="exportSelectAll" type="checkbox" />
+            <span>전체 선택</span>
+          </label>
+          <label class="modal-check">
+            <input id="exportSeparate" type="checkbox" checked />
+            <span>개별 저장</span>
+          </label>
+        </div>
+        <div id="exportGroupList" class="modal-scroll"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="exportCancelBtn" class="btn btn-secondary btn-small" type="button">취소</button>
+        <button id="exportConfirmBtn" class="btn btn-small" type="button">내보내기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="importModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
+      <h3 id="importModalTitle">XLSX 가져오기</h3>
+      <p>가져오기를 진행하면 기존 데이터가 사라집니다. 필요하면 먼저 저장해 주세요.</p>
+      <div class="modal-actions">
+        <button id="importCancelBtn" class="btn btn-secondary btn-small" type="button">취소</button>
+        <button id="importSaveBtn" class="btn btn-secondary btn-small" type="button">저장 후</button>
+        <button id="importConfirmBtn" class="btn btn-small" type="button">바로 가져오기</button>
+      </div>
+    </div>
+  </div>
+
+  <input id="importFileInput" type="file" accept=".xlsx,.xls" multiple hidden />
+
+  <script src="../common/connection/ble.js"></script>
+  <script src="../common/connection/app_state.js"></script>
+  <script src="../common/connection/serial_adapter.js"></script>
+  <script src="../common/connection/connection_manager.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="graph.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
