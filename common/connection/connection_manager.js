@@ -77,7 +77,10 @@
 
     /* ---------- BLE ---------- */
     _ensureBle() {
-      if (this._bleReady && this.app.ble.manager) return this.app.ble.manager;
+      if (this.app.ble.manager) {
+        this._bleReady = true;
+        return this.app.ble.manager;
+      }
       if (!global.BLE || !global.BLE.BLEManager) throw new Error('BLE.BLEManager is not loaded.');
       const mgr = new global.BLE.BLEManager();
       try { mgr.setMode(this.app.device); } catch {}

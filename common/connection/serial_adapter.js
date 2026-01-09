@@ -35,6 +35,15 @@
       return this.backend;
     }
 
+    _getBackendOrNull() {
+      if (this.backend) return this.backend;
+      try {
+        return this._pickBackend();
+      } catch {
+        return null;
+      }
+    }
+
     _status(text, cls) {
       if (typeof global.updateSerialStatus === 'function') {
         global.updateSerialStatus(text, cls);
@@ -183,13 +192,15 @@
     }
 
     async disconnect() {
-      const backend = this._pickBackend();
+      const backend = this._getBackendOrNull();
+      if (!backend) return false;
       if (backend === 'webserial')  return this._ws_disconnect();
       if (backend === 'p5')         return this._p5_disconnect();
     }
 
     isConnected() {
-      const backend = this.backend || this._pickBackend();
+      const backend = this._getBackendOrNull();
+      if (!backend) return false;
       if (backend === 'webserial')  return this._ws_isOpen();
       if (backend === 'p5')         return this._p5_isOpen();
       return false;

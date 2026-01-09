@@ -49,6 +49,10 @@ body {
     padding-top: 180px;
 }
 
+.back-btn {
+  color: var(--primary-color);
+}
+
 .header {
     position: fixed;
     top: 0;
@@ -442,6 +446,7 @@ body {
 .toggle-container {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 15px;
 }
 
@@ -1063,5 +1068,42 @@ body {
     }
 }
 
-/* 모바일 폭에서는 헤더 높이가 고정이므로 상단 패딩 제거 */
-/* 모바일 상단 패딩은 JS에서 헤더 높이 기반으로 계산 적용 */
+.label-item {
+    display: block;
+    align-items: center;
+    padding: 10px 0;
+}
+.tm-bars { margin-top: 8px; display:flex; flex-direction:column; gap:6px; }
+.tm-bar { display:flex; align-items:center; gap:8px; padding: 4px; }
+.tm-bar__label { width:110px; font-size:.9em; color:#4a5568; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tm-bar__track { flex:1; height:12px; background:#e2e8f0; border-radius:6px; overflow:hidden; }
+.tm-bar__fill{
+  height:100%; width:0%;
+  background:linear-gradient(90deg, var(--bar-start, #667eea), var(--bar-end, #764ba2));
+  transition:width 120ms linear, box-shadow 120ms ease, transform 120ms ease;
+  will-change: width;
+}
+.tm-bar__pct { width:42px; text-align:right; font-size:.85em; color:#4a5568; }
+.tm-bar.is-top .tm-bar__fill { box-shadow:0 0 0 2px rgba(102,126,234,.25) inset; }
+
+.tm-bar.is-selected {
+    border: #10b981 solid 2px;
+    border-radius: 6px;
+    padding: 4px;
+}
+.tm-bar.is-selected .tm-bar__label { 
+    font-weight:600;
+    color:#1f2937;
+}
+.tm-bar.is-selected .tm-bar__fill { 
+  box-shadow:0 0 0 2px rgba(56,189,248,.45) inset, 0 0 12px rgba(56,189,248,.25);
+  animation: tmPop 380ms ease;
+}
+@keyframes tmPop {
+  0%   { transform: scaleX(.98); }
+  60%  { transform: scaleX(1.02); }
+  100% { transform: scaleX(1); }
+}
+
+.status-item .range-wrap { display:flex; align-items:center; gap:10px; width:70%; }
+#tmThreshold { width:100%; }

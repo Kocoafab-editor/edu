@@ -1,47 +1,6 @@
 /*
 Teachable Machine과 Microbit/ESP32 연동을 위한 p5.js 스케치
 */
-
-window.DEBUG_SEND = true; // 필요시 false로 끔
-const _now = () => Math.round(performance.now());
-
-window.SendStats = {
-  calls: 0,           // sendLastLabel 호출 수(강제 포함)
-  forces: 0,          // force 플러시 횟수
-  scheduled: 0,       // 후행 예약 횟수
-  sent: 0,            // 실제 전송 성공 횟수
-  cancelledSame: 0,   // '이미 보낸 값과 동일'로 취소
-  cancelledNoConn: 0, // 연결 안됨으로 취소/대기
-  errors: 0,          // 전송 실패
-  last10: [],         // 최근 10건 {t,label,kind}
-  lastSentAt: 0,
-  lastSentLabel: null,
-};
-
-window.dumpSendStats = function() {
-  const s = window.SendStats;
-  console.table({
-    calls: s.calls, forces: s.forces, scheduled: s.scheduled, sent: s.sent,
-    cancelledSame: s.cancelledSame, cancelledNoConn: s.cancelledNoConn, errors: s.errors,
-    lastSentLabel: s.lastSentLabel, lastSentAt_ms: s.lastSentAt
-  });
-  console.log('last10:', s.last10);
-};
-window.clearSendStats = function() {
-  Object.assign(window.SendStats, {calls:0,forces:0,scheduled:0,sent:0,cancelledSame:0,cancelledNoConn:0,errors:0,last10:[],lastSentAt:0,lastSentLabel:null});
-  console.log('[SendStats] cleared');
-};
-
-function _dbg(...args){ if (window.DEBUG_SEND) console.log(...args); }
-function _pushLast(kind, label) {
-  const s = window.SendStats;
-  s.last10.push({ t: _now(), kind, label });
-  if (s.last10.length > 10) s.last10.shift();
-}
-
-
-/* ======= debug용 전역 변수 ======= */
-
 let modelURL = "";
 let classifier;
 let video;
@@ -72,6 +31,8 @@ window.setModelUrl = function(url) {
   modelURL = url;
   loadAndStartModel();
 };
+
+window.SendStats = window.SendStats || { calls: 0, lastSentAt: 0 };
 
 function _isConnected() {
   try { return !!(window.connectionManager && window.connectionManager.isConnected()); }
@@ -151,8 +112,9 @@ function draw() {
   fill(255);
   textSize(16);
   textAlign(CENTER);
-  if (label) {
-    text(label, width / 2, height - 4);
+  const drawLabel = (window.currentLabel ?? label ?? "").trim();
+  if (drawLabel) {
+    text(drawLabel, width / 2, height - 4);
   } else {
     text("인식 대기중...", width / 2, height - 4);
   }
@@ -218,27 +180,33 @@ function classifyVideo() {
 }
 
 async function gotResult(error, results) {
-  if (error) {
-    console.error("분류 오류:", error);
-    return;
-  }
-  
-  if (results && results.length > 0) {
-    label = results[0].label;
-    
-    // 결과가 변경되었을 때만 처리
-    if (label && label !== window.currentLabel) {
-      window.updateRecognitionResult(label);
-      window.currentLabel = label;
+  if (error) { console.error("분류 오류:", error); return; }
 
-      sendLastLabel();
+  if (results && results.length > 0) {
+    // ① 막대 그래프 업데이트
+    try { window.PREDICT_UI.updateFromMl5(results); } catch(e){}
+
+    // ② 민감도/마진 조건을 만족할 때만 최종 라벨 확정
+    const top    = results[0];
+    const second = results[1] || {};
+    const topLbl = top.label ?? top.className;
+    const topP   = top.confidence ?? top.probability ?? 0;
+    const secP   = second.confidence ?? second.probability ?? 0;
+
+    const thr    = window.PREDICT_THRESHOLD ?? 0.94;
+    const margin = window.PREDICT_MARGIN    ?? 0.05;
+
+    if (topP >= thr && (topP - secP) >= margin) {
+      if (topLbl && topLbl !== window.currentLabel) {
+        try { window.PREDICT_UI.highlightSelected(topLbl); } catch(e){}
+        window.updateRecognitionResult(topLbl);
+        window.currentLabel = topLbl;
+        sendLastLabel();
+      }
     }
-    
-    prevLabel = label;
+    prevLabel = window.currentLabel;
   }
-  
-  // 다음 프레임 분류 계속
-  classifyVideo();
+  classifyVideo(); // 다음 프레임
 }
 
 function _scheduleTrailing(label, elapsedSinceLast) {
@@ -289,17 +257,12 @@ async function sendLastLabel(opts = {}) {
                 (window.currentLabel != null ? String(window.currentLabel) : null);
 
   window.SendStats.calls++;
-  _dbg('[sendLastLabel] call',
-    { label, force, currentLabel: window.currentLabel, lastSentLabel: _lastSentLabel, dt: (Date.now() - _lastSentAt) });
-
   // 보낼 값이 없으면 종료
   if (label == null) return;
 
   // ★ 싱크 보장 1: 원래 값으로 되돌아온 경우(= 이미 보낸 값) → 예약/전송 모두 취소
   if (!force && label === _lastSentLabel) {
     window.SendStats.cancelledSame++;
-    _pushLast('cancel-same', label);
-    _dbg(' ↳ cancel (same as last sent):', label);
     if (_pendingTimer) { clearTimeout(_pendingTimer); _pendingTimer = null; }
     _pendingLabel = null;
     return;
@@ -318,8 +281,6 @@ async function sendLastLabel(opts = {}) {
 
       Object.assign(window.SendStats, { lastSentLabel: _lastSentLabel, lastSentAt: _lastSentAt });
       window.SendStats.sent++;
-      _pushLast(force ? 'force-send' : 'send', label);
-      _dbg(' ✅ sent immediately:', { label, force, at: _lastSentAt });
 
       // 예약 클리어
       if (_pendingTimer) { clearTimeout(_pendingTimer); _pendingTimer = null; }
@@ -358,3 +319,117 @@ async function sendLastLabel(opts = {}) {
 function mouseClicked() {
   // 추가 기능이 필요할 때 사용
 }
+
+/* --- Prediction bar UI (DOM) --- */
+window.PREDICT_UI = (function(){
+  let root = null;
+  let labels = [];        // 현재 DOM에 그려진 레이블(정렬 고정)
+  let selected = null;    // 최종 선택된(민감도 통과) 라벨
+
+  function getRoot(){
+    if (!root) root = document.getElementById('tmBars');
+    return root;
+  }
+
+  // 안정된 UI를 위해 항상 알파벳 정렬 고정
+  function uniqSorted(arr){
+    const s = Array.from(new Set(arr));
+    return s.sort((a,b)=> a.localeCompare(b));
+  }
+
+  function hashStrH(label){ // 0~359
+    let h=0; for(let i=0;i<label.length;i++){ h = (h*31 + label.charCodeAt(i)) >>> 0; }
+    return h % 360;
+  }
+  function hslToHex(h,s,l){
+    s/=100; l/=100;
+    const k=n=> (n+ h/30)%12;
+    const a=s*Math.min(l,1-l);
+    const f=n=> l - a*Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n),1)));
+    const toHex=x=> Math.round(x*255).toString(16).padStart(2,'0');
+    return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+  }
+  function gradientForLabel(label){
+    const h = hashStrH(label);
+    const start = hslToHex(h, 72, 56);      // 주 색
+    const end   = hslToHex((h+20)%360, 72, 48); // 살짝 다른 톤
+    return {start, end};
+  }
+  function applyRowColor(row, label){
+    const {start, end} = gradientForLabel(label);
+    row.style.setProperty('--bar-start', start);
+    row.style.setProperty('--bar-end', end);
+  }
+
+  function eqArr(a,b){
+    if (a.length !== b.length) return false;
+    for (let i=0;i<a.length;i++) if (a[i]!==b[i]) return false;
+    return true;
+  }
+
+  function labelOf(r){ return (r.label ?? r.className ?? '') + ''; }
+  function deriveLabels(results){
+    return uniqSorted(results.map(labelOf));
+  }
+
+  function rebuild(newLabels){
+    const mount = getRoot();
+    if (!mount) return;
+    labels = newLabels.slice();
+    mount.innerHTML = labels.map(l => `
+      <div class="tm-bar" data-label="${l}">
+        <span class="tm-bar__label">${l}</span>
+        <div class="tm-bar__track"><div class="tm-bar__fill"></div></div>
+        <span class="tm-bar__pct">0%</span>
+      </div>
+    `).join('');
+    // 기존 선택 상태 리셋
+    mount.querySelectorAll('.tm-bar').forEach(row=>{
+      applyRowColor(row, row.getAttribute('data-label'));
+    });
+    selected = null;
+  }
+
+  function reconcileFromResults(results){
+    const newLabels = deriveLabels(results);
+    if (!eqArr(labels, newLabels)) {
+      rebuild(newLabels);                 // ← 모델 교체/레이블 수 변경 자동 대응 (문제 ①)
+    }
+  }
+
+  function updateFromMl5(results){
+    if (!results || !results.length) return;
+    reconcileFromResults(results);
+
+    // 상위 확률(1등) 찾기
+    const topP = Math.round(((results[0].confidence ?? results[0].probability) || 0) * 100);
+
+    // 이름→확률 맵
+    const map = Object.create(null);
+    results.forEach(r => { map[labelOf(r)] = ((r.confidence ?? r.probability) || 0); });
+
+    const mount = getRoot(); if (!mount) return;
+    mount.querySelectorAll('.tm-bar').forEach(row => {
+      const name = row.getAttribute('data-label') || row.querySelector('.tm-bar__label')?.textContent || '';
+      const p = Math.round((map[name] || 0) * 100);
+      const fill = row.querySelector('.tm-bar__fill');
+      const pct  = row.querySelector('.tm-bar__pct');
+      if (fill) fill.style.width = p + '%';
+      if (pct)  pct.textContent = p + '%';
+      row.classList.toggle('is-top', p === topP);
+      // 선택 하이라이트 유지 여부
+      row.classList.toggle('is-selected', selected === name);
+    });
+  }
+
+  function highlightSelected(name){
+    selected = name || null;
+    const mount = getRoot(); if (!mount) return;
+    mount.querySelectorAll('.tm-bar').forEach(row => {
+      const isSel = (row.getAttribute('data-label') === selected);
+      row.classList.toggle('is-selected', isSel);
+    });
+  }
+
+  return { updateFromMl5, highlightSelected, rebuild };
+})();
