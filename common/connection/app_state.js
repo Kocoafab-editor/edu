@@ -15,7 +15,10 @@
     serial: { portOpen: false, baudRate: BAUD.microbit },
     // 파생 상태(읽기 전용 느낌으로 사용)
     get baud() { return this.serial.baudRate; },
-    get eol()  { return EOL[this.transport][this.device] || '\n'; },
+    get eol()  {
+      const v = (EOL[this.transport] || {})[this.device];
+      return (v !== undefined) ? v : '\n';
+    },
 
     setDevice(device) {
       this.device = (device === 'esp32' || device === 'orange' || device === 'microbit') ? device : 'microbit';
