@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const headerSettingsBar = document.querySelector('.header-settings-bar');
   const headerToggleBtn = document.getElementById('headerToggleBtn');
   const hamburgerBtn = document.getElementById('hamburgerBtn');
@@ -86,21 +86,13 @@
   let lastActiveGroupId = null;
   let allowUnload = false;
   let isGroupPanelOpen = false;
-  let pendingImportAfterExport = false;
   let isTouchDragging = false;
   let touchDrag = null;
   let touchGhost = null;
   let touchDrop = null;
-  let storageWarned = false;
-  let storageCheckTimer = null;
   const modalFocusMap = new WeakMap();
-  const DUMMY_PREFIX = 'loggerDummy_';
-  const DUMMY_DB = 'loggerDummyStorage';
-  const DUMMY_STORE = 'chunks';
-  const DUMMY_CHUNK_SIZE = 1024 * 100;
-  const LOCAL_STORAGE_QUOTA_BYTES = 5 * 1024 * 1024;
-  const TEXT_ENCODER = new TextEncoder();
-  const TEXT_DECODER = new TextDecoder('utf-8');
+  const storageManager = window.StorageManager;
+  const excelIO = window.ExcelIO;
 
   function normalizeLabel(value) {
     return (value || '').toString().trim().toLowerCase();
@@ -141,257 +133,52 @@
     return groups[groups.length - 1] || groups[0] || null;
   }
 
-  const STORAGE_KEY = 'loggerState.v1';
-  const SAVE_DEBOUNCE_MS = 1200;
-  let saveTimer = null;
-  let pendingSave = false;
-
   function scheduleSave() {
-    pendingSave = true;
-    if (saveTimer) return;
-    saveTimer = setTimeout(() => {
-      saveTimer = null;
-      if (!pendingSave) return;
-      pendingSave = false;
-      saveState();
-    }, SAVE_DEBOUNCE_MS);
-  }
-
-  function serializeGroupData(group) {
-    const data = {};
-    const source = group.graph?.data;
-    group.series.forEach((series) => {
-      const points = source?.get(series.id) || [];
-      data[series.id] = points.map((pt) => ({ t: pt.t, v: pt.v }));
-    });
-    return data;
-  }
-
-  function buildStatePayload() {
-    return {
-      version: 1,
-      lastActiveGroupId,
-      autoSeriesMap: autoSeriesMap.slice(),
-      groups: groups.map((group) => ({
-        id: group.id,
-        name: group.name,
-        series: group.series.map((series) => ({
-          id: series.id,
-          label: series.label,
-          color: series.color,
-        })),
-        data: serializeGroupData(group),
-        bodyHeight: group.elements.body?.clientHeight || null,
-        isFolded: group.isFolded,
-      })),
-    };
-  }
-
-  function getGlobalDataRange() {
-    let minTime = Infinity;
-    let maxTime = -Infinity;
-    let totalPoints = 0;
-    groups.forEach((group) => {
-      if (!group.graph?.data) return;
-      group.series.forEach((series) => {
-        const points = group.graph.data.get(series.id) || [];
-        points.forEach((pt) => {
-          if (!Number.isFinite(pt?.t)) return;
-          totalPoints += 1;
-          minTime = Math.min(minTime, pt.t);
-          maxTime = Math.max(maxTime, pt.t);
-        });
-      });
-    });
-    if (!Number.isFinite(minTime) || !Number.isFinite(maxTime) || totalPoints === 0) {
-      return null;
-    }
-    return { minTime, maxTime, duration: Math.max(0, maxTime - minTime), totalPoints };
-  }
-
-  function trimOldestData(ratio = 0.1) {
-    const range = getGlobalDataRange();
-    if (!range) return false;
-    let removed = 0;
-    if (range.duration > 0) {
-      const sliceMs = Math.max(1, Math.floor(range.duration * ratio));
-      const cutoff = range.minTime + sliceMs;
-      groups.forEach((group) => {
-        if (!group.graph?.data) return;
-        group.series.forEach((series) => {
-          const points = group.graph.data.get(series.id) || [];
-          if (!points.length) return;
-          const filtered = points.filter((pt) => Number.isFinite(pt?.t) && pt.t >= cutoff);
-          removed += points.length - filtered.length;
-          group.graph.data.set(series.id, filtered);
-        });
-      });
-    } else {
-      groups.forEach((group) => {
-        if (!group.graph?.data) return;
-        group.series.forEach((series) => {
-          const points = group.graph.data.get(series.id) || [];
-          if (!points.length) return;
-          const removeCount = Math.max(1, Math.floor(points.length * ratio));
-          const filtered = points.slice(removeCount);
-          removed += points.length - filtered.length;
-          group.graph.data.set(series.id, filtered);
-        });
-      });
-    }
-
-    alignGroupsToGlobalTimeline({ recalc: true });
-    return removed > 0;
+    storageManager?.scheduleSave?.();
   }
 
   function saveState() {
-    if (!window.localStorage) return;
-    let payload = buildStatePayload();
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-      scheduleStorageCheck();
-    } catch (err) {
-      if (err && err.name === 'QuotaExceededError') {
-        let trimmed = false;
-        for (let attempt = 0; attempt < 3; attempt += 1) {
-          const ratio = 0.1 + attempt * 0.1;
-          const removed = trimOldestData(ratio);
-          if (!removed) break;
-          trimmed = true;
-          payload = buildStatePayload();
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-            scheduleStorageCheck();
-            if (trimmed) {
-              showNotification('저장 공간이 부족해 오래된 데이터를 삭제했습니다.', 'error');
-            }
-            return;
-          } catch (retryErr) {
-            if (!retryErr || retryErr.name !== 'QuotaExceededError') {
-              console.warn('Failed to save state', retryErr);
-              return;
-            }
-          }
-        }
-        showNotification('브라우저 저장 공간이 부족합니다.', 'error');
-      }
-      console.warn('Failed to save state', err);
-    }
+    storageManager?.saveState?.();
   }
 
-  function scheduleStorageCheck() {
-    if (storageCheckTimer) return;
-    storageCheckTimer = setTimeout(() => {
-      storageCheckTimer = null;
-      checkStorageUsage();
-    }, 2500);
+  function loadState() {
+    return storageManager?.loadState?.() ?? false;
   }
 
-  async function checkStorageUsage(options = {}) {
-    if (!navigator.storage || typeof navigator.storage.estimate !== 'function') return null;
-    try {
-      const estimate = await navigator.storage.estimate();
-      const usage = Number(estimate?.usage);
-      const quota = Number(estimate?.quota);
-      if (!Number.isFinite(usage) || !Number.isFinite(quota) || quota <= 0) return null;
-      const ratio = usage / quota;
-      if (ratio >= 0.8 && (!storageWarned || options.forceToast)) {
-        storageWarned = true;
-        const percent = Math.round(ratio * 100);
-        showNotification(`브라우저 저장 공간이 ${percent}% 사용되었습니다.`, 'error');
-      } else if (ratio < 0.7 && storageWarned) {
-        storageWarned = false;
-      }
-    } catch (err) {
-      console.warn('Failed to estimate storage', err);
-      return null;
-    }
+  function resetProject() {
+    storageManager?.resetProject?.();
   }
 
-  function openDummyDb() {
-    return new Promise((resolve, reject) => {
-      if (!window.indexedDB) {
-        resolve(null);
-        return;
-      }
-      const request = indexedDB.open(DUMMY_DB, 1);
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains(DUMMY_STORE)) {
-          db.createObjectStore(DUMMY_STORE, { autoIncrement: true });
-        }
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
+  function fillStorageForTest() {
+    storageManager?.fillStorageForTest?.();
   }
 
-  function fillIndexedDb(db, targetBytes) {
-    if (!db || targetBytes <= 0) return Promise.resolve(0);
-    let written = 0;
-    return new Promise((resolve) => {
-      const writeBatch = () => {
-        const tx = db.transaction(DUMMY_STORE, 'readwrite');
-        const store = tx.objectStore(DUMMY_STORE);
-        for (let i = 0; i < 10 && written < targetBytes; i += 1) {
-          const blob = new Blob(['0'.repeat(DUMMY_CHUNK_SIZE)], { type: 'text/plain' });
-          store.add(blob);
-          written += DUMMY_CHUNK_SIZE;
-        }
-        tx.oncomplete = () => {
-          if (written >= targetBytes) {
-            resolve(written);
-          } else {
-            setTimeout(writeBatch, 0);
-          }
-        };
-        tx.onerror = () => resolve(written);
-      };
-      writeBatch();
-    });
+  function clearStorageTestData() {
+    storageManager?.clearStorageTestData?.();
   }
 
-  function fillLocalStorage(targetBytes) {
-    if (!window.localStorage) return Promise.resolve({ written: 0, quotaExceeded: true });
-    const prefix = `${DUMMY_PREFIX}${Date.now()}`;
-    const chunk = '0'.repeat(DUMMY_CHUNK_SIZE);
-    let written = 0;
-    let index = 0;
-    return new Promise((resolve) => {
-      const writeBatch = () => {
-        for (let i = 0; i < 10 && written < targetBytes; i += 1) {
-          try {
-            localStorage.setItem(`${prefix}_${index++}`, chunk);
-            written += DUMMY_CHUNK_SIZE;
-          } catch (err) {
-            if (err && err.name === 'QuotaExceededError') {
-              resolve({ written, quotaExceeded: true });
-              return;
-            }
-            console.warn('Failed to add dummy storage', err);
-            resolve({ written, quotaExceeded: true });
-            return;
-          }
-        }
-        if (written >= targetBytes) {
-          resolve({ written, quotaExceeded: false });
-        } else {
-          setTimeout(writeBatch, 0);
-        }
-      };
-      writeBatch();
-    });
+  function logLocalStorageUsage() {
+    storageManager?.logLocalStorageUsage?.();
   }
 
-  function scheduleStorageWarningCheck(retries = 3) {
-    let remaining = retries;
-    const tick = () => {
-      checkStorageUsage({ forceToast: true });
-      if (remaining <= 0) return;
-      remaining -= 1;
-      setTimeout(tick, 800);
-    };
-    tick();
+  function checkStorageUsage(options) {
+    return storageManager?.checkStorageUsage?.(options);
+  }
+
+  function openExportModal() {
+    excelIO?.openExportModal?.();
+  }
+
+  function closeExportModal() {
+    excelIO?.closeExportModal?.();
+  }
+
+  function openImportModal() {
+    excelIO?.openImportModal?.();
+  }
+
+  function closeImportModal() {
+    excelIO?.closeImportModal?.();
   }
 
   function showNotification(message, type = 'info') {
@@ -524,1105 +311,6 @@
     const fixed = sec % 1 === 0 ? sec.toFixed(0) : sec.toFixed(2);
     const trimmed = fixed.replace(/\.?0+$/, '');
     return `${trimmed || '0'}s`;
-  }
-
-  function escapeXml(value) {
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
-
-  function encodeUtf8(value) {
-    return TEXT_ENCODER.encode(String(value));
-  }
-
-  function decodeUtf8(value) {
-    return TEXT_DECODER.decode(value);
-  }
-
-  function wrapImportError(stage, err) {
-    const message = err && err.message ? err.message : String(err);
-    const error = new Error(`[${stage}] ${message}`);
-    error.cause = err;
-    return error;
-  }
-
-  function getLocalStorageUsageBytes() {
-    if (!window.localStorage) return 0;
-    let total = 0;
-    for (let i = 0; i < localStorage.length; i += 1) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      const value = localStorage.getItem(key) || '';
-      total += (key.length + value.length) * 2;
-    }
-    return total;
-  }
-
-  function logLocalStorageUsage() {
-    const used = getLocalStorageUsageBytes();
-    const percent = Math.round((used / LOCAL_STORAGE_QUOTA_BYTES) * 100);
-    const usedMb = (used / (1024 * 1024)).toFixed(2);
-    console.info(`[Storage] localStorage: ${usedMb} MB (${percent}% of 5MB)`);
-  }
-
-  function normalizeGroupName(value) {
-    return (value || '').toString().trim().toLowerCase();
-  }
-
-  function makeUniqueGroupName(baseName, nameSet) {
-    const safeBase = sanitizeText(baseName) || '그룹';
-    let candidate = safeBase;
-    let index = 0;
-    while (nameSet.has(normalizeGroupName(candidate))) {
-      index += 1;
-      candidate = `${safeBase}_${index}`;
-    }
-    nameSet.add(normalizeGroupName(candidate));
-    return candidate;
-  }
-
-  function safeSheetName(name, index) {
-    const fallback = `Group ${index + 1}`;
-    const base = sanitizeText(name || '') || fallback;
-    const trimmed = base.replace(/[\[\]\*\/\\\:\?]/g, '_').slice(0, 31);
-    return trimmed || fallback;
-  }
-
-  function buildGroupTable(group) {
-    const labels = group.series.map((series) => series.label || '');
-    const dataRows = new Map();
-    let minTime = Infinity;
-
-    group.series.forEach((series, seriesIndex) => {
-      const points = group.graph?.data?.get(series.id) || [];
-      points.forEach((pt) => {
-        if (!Number.isFinite(pt?.t) || !Number.isFinite(pt?.v)) return;
-        minTime = Math.min(minTime, pt.t);
-        if (!dataRows.has(pt.t)) {
-          dataRows.set(pt.t, Array(labels.length).fill(''));
-        }
-        dataRows.get(pt.t)[seriesIndex] = pt.v;
-      });
-    });
-
-    const startTime = Number.isFinite(group.startTime)
-      ? group.startTime
-      : (minTime === Infinity ? 0 : minTime);
-
-    const rows = Array.from(dataRows.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([time, values]) => ({
-        timeSec: Math.max(0, (time - startTime) / 1000),
-        values,
-      }));
-
-    return { labels, rows };
-  }
-
-  function columnName(index) {
-    let name = '';
-    let num = index + 1;
-    while (num > 0) {
-      const rem = (num - 1) % 26;
-      name = String.fromCharCode(65 + rem) + name;
-      num = Math.floor((num - 1) / 26);
-    }
-    return name;
-  }
-
-  function buildInlineCell(rowIndex, colIndex, text) {
-    const ref = `${columnName(colIndex)}${rowIndex}`;
-    return `<c r="${ref}" t="inlineStr"><is><t>${escapeXml(text)}</t></is></c>`;
-  }
-
-  function buildNumberCell(rowIndex, colIndex, value) {
-    const ref = `${columnName(colIndex)}${rowIndex}`;
-    return `<c r="${ref}"><v>${value}</v></c>`;
-  }
-
-  function buildSheetXml(table) {
-    const rows = [];
-    rows.push('<row r="1"/>');
-
-    const headerCells = ['time', ...table.labels]
-      .map((label, colIndex) => buildInlineCell(2, colIndex, label))
-      .join('');
-    rows.push(`<row r="2">${headerCells}</row>`);
-
-    let rowIndex = 3;
-    table.rows.forEach((row) => {
-      const cells = [];
-      cells.push(buildInlineCell(rowIndex, 0, formatSeconds(row.timeSec)));
-      row.values.forEach((value, colIndex) => {
-        if (Number.isFinite(value)) {
-          cells.push(buildNumberCell(rowIndex, colIndex + 1, value));
-        }
-      });
-      rows.push(`<row r="${rowIndex}">${cells.join('')}</row>`);
-      rowIndex += 1;
-    });
-
-    return (
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-      `<sheetData>${rows.join('')}</sheetData>` +
-      '</worksheet>'
-    );
-  }
-
-  function buildWorkbookXml(sheetNames) {
-    const sheets = sheetNames
-      .map((name, index) => (
-        `<sheet name="${escapeXml(name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`
-      ))
-      .join('');
-    return (
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
-      'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
-      `<sheets>${sheets}</sheets>` +
-      '</workbook>'
-    );
-  }
-
-  function buildWorkbookRelsXml(sheetCount) {
-    const rels = [];
-    for (let i = 0; i < sheetCount; i += 1) {
-      rels.push(
-        `<Relationship Id="rId${i + 1}" ` +
-        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" ' +
-        `Target="worksheets/sheet${i + 1}.xml"/>`
-      );
-    }
-    rels.push(
-      `<Relationship Id="rId${sheetCount + 1}" ` +
-      'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" ' +
-      'Target="styles.xml"/>'
-    );
-    return (
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-      rels.join('') +
-      '</Relationships>'
-    );
-  }
-
-  function buildRootRelsXml() {
-    return (
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-      '<Relationship Id="rId1" ' +
-      'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" ' +
-      'Target="xl/workbook.xml"/>' +
-      '</Relationships>'
-    );
-  }
-
-  function buildContentTypesXml(sheetCount) {
-    const overrides = [];
-    for (let i = 0; i < sheetCount; i += 1) {
-      overrides.push(
-        `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ` +
-        'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
-      );
-    }
-    return (
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-      '<Default Extension="xml" ContentType="application/xml"/>' +
-      '<Override PartName="/xl/workbook.xml" ' +
-      'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
-      '<Override PartName="/xl/styles.xml" ' +
-      'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
-      overrides.join('') +
-      '</Types>'
-    );
-  }
-
-  function buildStylesXml() {
-    return (
-      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-      '<fonts count="1"><font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/></font></fonts>' +
-      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
-      '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
-      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-      '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>' +
-      '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
-      '</styleSheet>'
-    );
-  }
-
-  function makeCrcTable() {
-    const table = new Uint32Array(256);
-    for (let i = 0; i < 256; i += 1) {
-      let crc = i;
-      for (let j = 0; j < 8; j += 1) {
-        crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
-      }
-      table[i] = crc >>> 0;
-    }
-    return table;
-  }
-
-  const CRC_TABLE = makeCrcTable();
-
-  function crc32(bytes) {
-    let crc = 0xffffffff;
-    for (let i = 0; i < bytes.length; i += 1) {
-      crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ bytes[i]) & 0xff];
-    }
-    return (crc ^ 0xffffffff) >>> 0;
-  }
-
-  function concatBytes(chunks) {
-    const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const result = new Uint8Array(total);
-    let offset = 0;
-    chunks.forEach((chunk) => {
-      result.set(chunk, offset);
-      offset += chunk.length;
-    });
-    return result;
-  }
-
-  function buildZip(entries) {
-    const localParts = [];
-    const centralParts = [];
-    let offset = 0;
-
-    entries.forEach((entry) => {
-      const nameBytes = encodeUtf8(entry.name);
-      const data = entry.data instanceof Uint8Array ? entry.data : encodeUtf8(entry.data);
-      const crc = crc32(data);
-
-      const localHeader = new Uint8Array(30 + nameBytes.length);
-      const localView = new DataView(localHeader.buffer);
-      localView.setUint32(0, 0x04034b50, true);
-      localView.setUint16(4, 20, true);
-      localView.setUint16(6, 0, true);
-      localView.setUint16(8, 0, true);
-      localView.setUint16(10, 0, true);
-      localView.setUint16(12, 0, true);
-      localView.setUint32(14, crc, true);
-      localView.setUint32(18, data.length, true);
-      localView.setUint32(22, data.length, true);
-      localView.setUint16(26, nameBytes.length, true);
-      localView.setUint16(28, 0, true);
-      localHeader.set(nameBytes, 30);
-
-      localParts.push(localHeader, data);
-
-      const centralHeader = new Uint8Array(46 + nameBytes.length);
-      const centralView = new DataView(centralHeader.buffer);
-      centralView.setUint32(0, 0x02014b50, true);
-      centralView.setUint16(4, 20, true);
-      centralView.setUint16(6, 20, true);
-      centralView.setUint16(8, 0, true);
-      centralView.setUint16(10, 0, true);
-      centralView.setUint16(12, 0, true);
-      centralView.setUint16(14, 0, true);
-      centralView.setUint32(16, crc, true);
-      centralView.setUint32(20, data.length, true);
-      centralView.setUint32(24, data.length, true);
-      centralView.setUint16(28, nameBytes.length, true);
-      centralView.setUint16(30, 0, true);
-      centralView.setUint16(32, 0, true);
-      centralView.setUint16(34, 0, true);
-      centralView.setUint16(36, 0, true);
-      centralView.setUint32(38, 0, true);
-      centralView.setUint32(42, offset, true);
-      centralHeader.set(nameBytes, 46);
-
-      centralParts.push(centralHeader);
-
-      offset += localHeader.length + data.length;
-    });
-
-    const centralDirectory = concatBytes(centralParts);
-    const eocd = new Uint8Array(22);
-    const eocdView = new DataView(eocd.buffer);
-    eocdView.setUint32(0, 0x06054b50, true);
-    eocdView.setUint16(4, 0, true);
-    eocdView.setUint16(6, 0, true);
-    eocdView.setUint16(8, entries.length, true);
-    eocdView.setUint16(10, entries.length, true);
-    eocdView.setUint32(12, centralDirectory.length, true);
-    eocdView.setUint32(16, offset, true);
-    eocdView.setUint16(20, 0, true);
-
-    return concatBytes([...localParts, centralDirectory, eocd]);
-  }
-
-  function buildXlsx(groupsToExport) {
-    const sheets = groupsToExport.map((group, index) => {
-      const table = buildGroupTable(group);
-      const name = safeSheetName(group.name, index);
-      return { name, xml: buildSheetXml(table) };
-    });
-
-    const entries = [
-      { name: '[Content_Types].xml', data: buildContentTypesXml(sheets.length) },
-      { name: '_rels/.rels', data: buildRootRelsXml() },
-      { name: 'xl/workbook.xml', data: buildWorkbookXml(sheets.map((sheet) => sheet.name)) },
-      { name: 'xl/_rels/workbook.xml.rels', data: buildWorkbookRelsXml(sheets.length) },
-      { name: 'xl/styles.xml', data: buildStylesXml() },
-    ];
-
-    sheets.forEach((sheet, index) => {
-      entries.push({ name: `xl/worksheets/sheet${index + 1}.xml`, data: sheet.xml });
-    });
-
-    return buildZip(entries);
-  }
-
-  function downloadFile(content, filename, mime) {
-    const blob = new Blob([content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  function exportSelectedGroups(selectedGroups, options = {}) {
-    const separate = options.separate !== false;
-    if (!selectedGroups.length) {
-      showNotification('내보낼 그룹을 선택해 주세요.', 'error');
-      return false;
-    }
-    if (separate) {
-      selectedGroups.forEach((group, index) => {
-        const workbook = buildXlsx([group]);
-        const name = `${safeSheetName(group.name, index)}-${getDateStamp()}.xlsx`;
-        downloadFile(workbook, name, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      });
-    } else {
-      const workbook = buildXlsx(selectedGroups);
-      const name = `sensor-data-${getDateStamp()}.xlsx`;
-      downloadFile(workbook, name, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    }
-    return true;
-  }
-
-  function renderExportList() {
-    if (!exportGroupList) return;
-    exportGroupList.innerHTML = '';
-    groups.forEach((group) => {
-      const label = document.createElement('label');
-      label.className = 'modal-item';
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.value = group.id;
-      input.checked = true;
-      const text = document.createElement('span');
-      text.textContent = `${group.name} (${group.series.length}채널)`;
-      label.appendChild(input);
-      label.appendChild(text);
-      exportGroupList.appendChild(label);
-    });
-  }
-
-  function getSelectedGroupIds() {
-    if (!exportGroupList) return [];
-    const inputs = Array.from(exportGroupList.querySelectorAll('input[type="checkbox"]'));
-    return inputs.filter((input) => input.checked).map((input) => input.value);
-  }
-
-  function openExportModal() {
-    if (groups.length <= 1) {
-      const ok = exportSelectedGroups(groups.slice(0, 1), { separate: true });
-      if (ok && pendingImportAfterExport) {
-        pendingImportAfterExport = false;
-        setTimeout(() => importFileInput?.click(), 200);
-      }
-      return;
-    }
-    renderExportList();
-    if (exportSelectAll) {
-      exportSelectAll.checked = true;
-    }
-    if (exportSeparate) {
-      exportSeparate.checked = true;
-    }
-    setModalOpen(exportModal, true);
-  }
-
-  function closeExportModal() {
-    setModalOpen(exportModal, false);
-  }
-
-  function openImportModal() {
-    setModalOpen(importModal, true);
-  }
-
-  function closeImportModal() {
-    setModalOpen(importModal, false);
-  }
-
-  function parseTimeToSec(raw) {
-    const value = String(raw || '').trim().toLowerCase();
-    if (!value) return null;
-    const trimmed = value.endsWith('s') ? value.slice(0, -1) : value;
-    const num = Number.parseFloat(trimmed);
-    if (!Number.isFinite(num) || num < 0) return null;
-    return num;
-  }
-
-  function parseCsvRows(text) {
-    const rows = [];
-    let row = [];
-    let current = '';
-    let inQuotes = false;
-    const input = text.replace(/^\uFEFF/, '');
-    for (let i = 0; i < input.length; i += 1) {
-      const char = input[i];
-      if (inQuotes) {
-        if (char === '"') {
-          if (input[i + 1] === '"') {
-            current += '"';
-            i += 1;
-          } else {
-            inQuotes = false;
-          }
-        } else {
-          current += char;
-        }
-      } else if (char === '"') {
-        inQuotes = true;
-      } else if (char === ',') {
-        row.push(current);
-        current = '';
-      } else if (char === '\n') {
-        row.push(current);
-        rows.push(row);
-        row = [];
-        current = '';
-      } else if (char === '\r') {
-        continue;
-      } else {
-        current += char;
-      }
-    }
-    if (current.length || row.length) {
-      row.push(current);
-      rows.push(row);
-    }
-    return rows;
-  }
-
-  function parseRowsToTable(rows, name, sourceLabel) {
-    const normalized = rows.map((cells) => (
-      (Array.isArray(cells) ? cells : []).map((cell) => String(cell ?? '').trim())
-    ));
-    if (normalized.length < 2) throw new Error(`${sourceLabel} 파일이 비어 있습니다.`);
-
-    const header = normalized[1] || [];
-    if (!header.length || normalizeLabel(header[0]) !== 'time') {
-      throw new Error(`${sourceLabel} 형식이 올바르지 않습니다. (2번째 행)`);
-    }
-    const labels = header.slice(1).map((label) => sanitizeText(label)).filter(Boolean);
-    if (!labels.length) throw new Error('라벨이 없습니다.');
-
-    const dataRows = [];
-    for (let i = 2; i < normalized.length; i += 1) {
-      const cells = normalized[i] || [];
-      if (!cells.length || cells.every((cell) => cell === '')) continue;
-      const timeSec = parseTimeToSec(cells[0]);
-      if (timeSec === null) throw new Error('시간 형식이 올바르지 않습니다.');
-      const values = labels.map((_, index) => {
-        const value = Number.parseFloat(cells[index + 1]);
-        return Number.isFinite(value) ? value : null;
-      });
-      dataRows.push({ timeSec, values });
-    }
-    return { name, labels, rows: dataRows };
-  }
-
-  function parseCsvTable(text, name) {
-    const rows = parseCsvRows(text);
-    return parseRowsToTable(rows, name, 'CSV');
-  }
-
-  function parseWorksheetRow(row, cellTag) {
-    const cells = [];
-    let colIndex = 0;
-    const cellNodes = Array.from(row.getElementsByTagName(cellTag));
-    cellNodes.forEach((cell) => {
-      const indexAttr = cell.getAttribute('ss:Index') || cell.getAttribute('Index');
-      if (indexAttr) {
-        const target = Number.parseInt(indexAttr, 10) - 1;
-        while (colIndex < target) {
-          cells.push('');
-          colIndex += 1;
-        }
-      }
-      const dataNode = cell.getElementsByTagName('Data')[0];
-      cells.push(dataNode ? dataNode.textContent || '' : '');
-      colIndex += 1;
-    });
-    return cells;
-  }
-
-  function parseSpreadsheetXml(text) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(text, 'application/xml');
-    if (doc.getElementsByTagName('parsererror').length) {
-      throw new Error('파일을 읽을 수 없습니다.');
-    }
-    const worksheets = Array.from(doc.getElementsByTagName('Worksheet'));
-    if (!worksheets.length) throw new Error('워크시트를 찾을 수 없습니다.');
-    const tables = [];
-    worksheets.forEach((sheet, index) => {
-      const name = sheet.getAttribute('ss:Name') || sheet.getAttribute('Name') || `그룹 ${index + 1}`;
-      const tableNode = sheet.getElementsByTagName('Table')[0];
-      if (!tableNode) return;
-      const rows = Array.from(tableNode.getElementsByTagName('Row'));
-      if (!rows.length) return;
-      const parsedRows = rows.map((row) => parseWorksheetRow(row, 'Cell'));
-      tables.push(parseRowsToTable(parsedRows, name, '엑셀'));
-    });
-    if (!tables.length) throw new Error('데이터가 없습니다.');
-    return tables;
-  }
-
-  function columnLettersToIndex(letters) {
-    let index = 0;
-    for (let i = 0; i < letters.length; i += 1) {
-      index = index * 26 + (letters.charCodeAt(i) - 64);
-    }
-    return Math.max(0, index - 1);
-  }
-
-  function parseSharedStrings(xml) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xml, 'application/xml');
-    if (doc.getElementsByTagName('parsererror').length) return [];
-    const items = Array.from(doc.getElementsByTagName('si'));
-    return items.map((item) => {
-      const texts = Array.from(item.getElementsByTagName('t')).map((node) => node.textContent || '');
-      return texts.join('');
-    });
-  }
-
-  function parseSheetXmlRows(xml, sharedStrings) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xml, 'application/xml');
-    if (doc.getElementsByTagName('parsererror').length) {
-      throw new Error('엑셀 형식이 올바르지 않습니다.');
-    }
-    const rows = [];
-    const rowNodes = Array.from(doc.getElementsByTagName('row'));
-    rowNodes.forEach((rowNode) => {
-      const rowIndex = Number.parseInt(rowNode.getAttribute('r'), 10) || rows.length + 1;
-      const cells = [];
-      let fallbackCol = 0;
-      const cellNodes = Array.from(rowNode.getElementsByTagName('c'));
-      cellNodes.forEach((cell) => {
-        const ref = cell.getAttribute('r') || '';
-        const letters = ref.replace(/[0-9]/g, '');
-        const colIndex = letters ? columnLettersToIndex(letters) : fallbackCol;
-        fallbackCol = colIndex + 1;
-
-        const type = cell.getAttribute('t');
-        let value = '';
-        if (type === 'inlineStr') {
-          const textNodes = Array.from(cell.getElementsByTagName('t'));
-          value = textNodes.map((node) => node.textContent || '').join('');
-        } else {
-          const vNode = cell.getElementsByTagName('v')[0];
-          const raw = vNode ? vNode.textContent || '' : '';
-          if (type === 's') {
-            const idx = Number.parseInt(raw, 10);
-            value = Number.isFinite(idx) ? (sharedStrings[idx] || '') : '';
-          } else {
-            value = raw;
-          }
-        }
-        cells[colIndex] = value;
-      });
-      rows[rowIndex - 1] = cells.map((cell) => cell ?? '');
-    });
-    return rows.filter(Boolean);
-  }
-
-  function parseWorkbookRels(xml) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xml, 'application/xml');
-    const rels = new Map();
-    Array.from(doc.getElementsByTagName('Relationship')).forEach((rel) => {
-      const id = rel.getAttribute('Id');
-      const target = rel.getAttribute('Target');
-      if (id && target) rels.set(id, target);
-    });
-    return rels;
-  }
-
-  function parseZip(buffer) {
-    const view = new DataView(buffer);
-    let eocdOffset = -1;
-    const maxSearch = Math.max(0, buffer.byteLength - 22 - 0xffff);
-    for (let i = buffer.byteLength - 22; i >= maxSearch; i -= 1) {
-      if (view.getUint32(i, true) === 0x06054b50) {
-        eocdOffset = i;
-        break;
-      }
-    }
-    if (eocdOffset < 0) throw new Error('ZIP 구조를 찾을 수 없습니다.');
-
-    const centralSize = view.getUint32(eocdOffset + 12, true);
-    const centralOffset = view.getUint32(eocdOffset + 16, true);
-    const entries = new Map();
-    let ptr = centralOffset;
-    while (ptr < centralOffset + centralSize) {
-      if (view.getUint32(ptr, true) !== 0x02014b50) break;
-      const method = view.getUint16(ptr + 10, true);
-      const compressedSize = view.getUint32(ptr + 20, true);
-      const uncompressedSize = view.getUint32(ptr + 24, true);
-      const nameLength = view.getUint16(ptr + 28, true);
-      const extraLength = view.getUint16(ptr + 30, true);
-      const commentLength = view.getUint16(ptr + 32, true);
-      const localOffset = view.getUint32(ptr + 42, true);
-      const nameBytes = new Uint8Array(buffer, ptr + 46, nameLength);
-      const name = decodeUtf8(nameBytes);
-      entries.set(name, {
-        name,
-        method,
-        compressedSize,
-        uncompressedSize,
-        localOffset,
-      });
-      ptr += 46 + nameLength + extraLength + commentLength;
-    }
-    return entries;
-  }
-
-  function getZipEntryData(entry, buffer) {
-    const view = new DataView(buffer);
-    const offset = entry.localOffset;
-    if (view.getUint32(offset, true) !== 0x04034b50) {
-      throw new Error('ZIP 엔트리를 읽을 수 없습니다.');
-    }
-    const nameLength = view.getUint16(offset + 26, true);
-    const extraLength = view.getUint16(offset + 28, true);
-    const dataOffset = offset + 30 + nameLength + extraLength;
-    return new Uint8Array(buffer, dataOffset, entry.compressedSize);
-  }
-
-  async function inflateRaw(data) {
-    if (typeof DecompressionStream === 'undefined') {
-      throw new Error('브라우저에서 XLSX 압축 해제 기능을 지원하지 않습니다.');
-    }
-    let stream = null;
-    try {
-      stream = new DecompressionStream('deflate-raw');
-    } catch (err) {
-      stream = new DecompressionStream('deflate');
-    }
-    const decompressed = await new Response(new Blob([data]).stream().pipeThrough(stream)).arrayBuffer();
-    return new Uint8Array(decompressed);
-  }
-
-  async function readZipEntry(entry, buffer) {
-    const data = getZipEntryData(entry, buffer);
-    if (entry.method === 0) return data;
-    if (entry.method === 8) return inflateRaw(data);
-    throw new Error(`지원하지 않는 압축 방식입니다. (method=${entry.method})`);
-  }
-
-  async function readZipEntryText(entries, buffer, name) {
-    const entry = entries.get(name);
-    if (!entry) return null;
-    const bytes = await readZipEntry(entry, buffer);
-    return decodeUtf8(bytes);
-  }
-
-  async function parseXlsx(buffer) {
-    let entries = null;
-    try {
-      entries = parseZip(buffer);
-    } catch (err) {
-      throw wrapImportError('ZIP', err);
-    }
-
-    let workbookXml = null;
-    let relsXml = null;
-    try {
-      workbookXml = await readZipEntryText(entries, buffer, 'xl/workbook.xml');
-      relsXml = await readZipEntryText(entries, buffer, 'xl/_rels/workbook.xml.rels');
-    } catch (err) {
-      throw wrapImportError('XLSX 기본 파일', err);
-    }
-    if (!workbookXml || !relsXml) {
-      throw new Error('[XLSX] workbook.xml 또는 rels를 찾을 수 없습니다.');
-    }
-
-    let workbookDoc = null;
-    let sheetNodes = [];
-    try {
-      const parser = new DOMParser();
-      workbookDoc = parser.parseFromString(workbookXml, 'application/xml');
-      sheetNodes = Array.from(workbookDoc.getElementsByTagName('sheet'));
-    } catch (err) {
-      throw wrapImportError('workbook.xml 파싱', err);
-    }
-    if (!sheetNodes.length) throw new Error('워크시트를 찾을 수 없습니다.');
-
-    let rels = null;
-    try {
-      rels = parseWorkbookRels(relsXml);
-    } catch (err) {
-      throw wrapImportError('워크시트 관계 파일', err);
-    }
-
-    let sharedStrings = [];
-    try {
-      const sharedStringsXml = await readZipEntryText(entries, buffer, 'xl/sharedStrings.xml');
-      sharedStrings = sharedStringsXml ? parseSharedStrings(sharedStringsXml) : [];
-    } catch (err) {
-      throw wrapImportError('sharedStrings.xml', err);
-    }
-
-    const tables = [];
-    for (const sheet of sheetNodes) {
-      const name = sheet.getAttribute('name') || '그룹';
-      const relId = sheet.getAttribute('r:id');
-      const target = relId ? rels.get(relId) : null;
-      if (!target) {
-        throw new Error(`[XLSX] 시트 관계를 찾을 수 없습니다: ${name}`);
-      }
-      const sheetPath = target.startsWith('/') ? target.slice(1) : `xl/${target}`;
-      let sheetXml = null;
-      try {
-        sheetXml = await readZipEntryText(entries, buffer, sheetPath);
-      } catch (err) {
-        throw wrapImportError(`시트 로드 (${name})`, err);
-      }
-      if (!sheetXml) continue;
-      try {
-        const rows = parseSheetXmlRows(sheetXml, sharedStrings);
-        tables.push(parseRowsToTable(rows, name, 'XLSX'));
-      } catch (err) {
-        throw wrapImportError(`시트 파싱 (${name})`, err);
-      }
-    }
-
-    if (!tables.length) throw new Error('데이터가 없습니다.');
-    return tables;
-  }
-
-  async function parseWithSheetJs(buffer, fallbackName) {
-    if (!window.XLSX || typeof window.XLSX.read !== 'function') {
-      throw new Error('SheetJS를 불러올 수 없습니다.');
-    }
-    let workbook = null;
-    try {
-      workbook = window.XLSX.read(buffer, { type: 'array' });
-    } catch (err) {
-      throw wrapImportError('SheetJS 읽기', err);
-    }
-    const tables = [];
-    const sheetNames = workbook.SheetNames || [];
-    sheetNames.forEach((sheetName, index) => {
-      const sheet = workbook.Sheets[sheetName];
-      if (!sheet) return;
-      const rows = window.XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        blankrows: true,
-        defval: '',
-      });
-      if (rows.length && normalizeLabel(rows[0]?.[0]) === 'time') {
-        rows.unshift([]);
-      }
-      const name = sheetName || fallbackName || `그룹 ${index + 1}`;
-      tables.push(parseRowsToTable(rows, name, '엑셀'));
-    });
-    if (!tables.length) throw new Error('데이터가 없습니다.');
-    return tables;
-  }
-
-  function buildImportPayload(tables) {
-    const payload = { version: 1, groups: [], autoSeriesMap: [], lastActiveGroupId: null };
-    const labelSet = new Set();
-    const nameSet = new Set();
-    let groupIndex = 0;
-    let seriesIndex = 0;
-    const now = Date.now();
-
-    tables.forEach((table) => {
-      const baseLabels = table.labels.map((label) => sanitizeText(label)).filter(Boolean);
-      const labels = baseLabels.map((label) => {
-        let candidate = label;
-        let index = 0;
-        let normalized = normalizeLabel(candidate);
-        while (!normalized || labelSet.has(normalized)) {
-          index += 1;
-          candidate = `${label}_${index}`;
-          normalized = normalizeLabel(candidate);
-        }
-        labelSet.add(normalized);
-        return candidate;
-      });
-
-      const groupId = `group-${++groupIndex}`;
-      const series = labels.map((label) => {
-        const id = `series-${++seriesIndex}`;
-        const color = COLOR_PALETTE[(seriesIndex - 1) % COLOR_PALETTE.length];
-        return { id, label, color };
-      });
-
-      const maxSec = table.rows.reduce((acc, row) => Math.max(acc, row.timeSec), 0);
-      const baseTime = now - maxSec * 1000;
-      const data = {};
-      series.forEach((item) => {
-        data[item.id] = [];
-      });
-
-      table.rows.forEach((row) => {
-        const t = baseTime + row.timeSec * 1000;
-        row.values.forEach((value, idx) => {
-          if (!Number.isFinite(value)) return;
-          data[series[idx].id].push({ t, v: value });
-        });
-      });
-
-      const baseName = sanitizeText(table.name) || `그룹 ${groupIndex}`;
-      const name = makeUniqueGroupName(baseName, nameSet);
-      payload.groups.push({
-        id: groupId,
-        name,
-        series,
-        data,
-        bodyHeight: null,
-        isFolded: false,
-      });
-    });
-
-    payload.lastActiveGroupId = payload.groups[payload.groups.length - 1]?.id || null;
-    return payload;
-  }
-
-  function applyState(payload) {
-    groups.forEach((group) => group.elements.resizeObserver?.disconnect?.());
-    groups.splice(0, groups.length);
-    labelMap.clear();
-    autoSeriesMap.length = 0;
-    lastActiveGroupId = null;
-    groupCounter = 0;
-    seriesCounter = 0;
-
-    if (groupListEl) groupListEl.innerHTML = '';
-    if (graphListEl) graphListEl.innerHTML = '';
-
-    if (!payload || !Array.isArray(payload.groups)) return false;
-
-    payload.groups.forEach((groupState) => {
-      createGroupFromState(groupState);
-    });
-
-    payload.groups.forEach((groupState) => {
-      const group = getGroupById(groupState?.id);
-      if (!group) return;
-      if (Number.isFinite(groupState?.bodyHeight) && group.elements.body) {
-        group.elements.body.style.height = `${groupState.bodyHeight}px`;
-      }
-      if (groupState?.isFolded) {
-        foldGroup(group, group.elements.body?.clientHeight || groupState.bodyHeight || 0);
-      }
-      restoreGroupData(group, groupState);
-    });
-
-    if (Array.isArray(payload.autoSeriesMap)) {
-      payload.autoSeriesMap.forEach((seriesId, index) => {
-        if (typeof seriesId !== 'string') {
-          autoSeriesMap[index] = null;
-          return;
-        }
-        const found = findSeriesById(seriesId);
-        autoSeriesMap[index] = found ? seriesId : null;
-      });
-    }
-
-    if (typeof payload.lastActiveGroupId === 'string' && getGroupById(payload.lastActiveGroupId)) {
-      lastActiveGroupId = payload.lastActiveGroupId;
-    } else {
-      lastActiveGroupId = groups[groups.length - 1]?.id || groups[0]?.id || null;
-    }
-
-    alignGroupsToGlobalTimeline();
-    refreshDeleteStates();
-    return groups.length > 0;
-  }
-
-  function importFromText(text, fileName) {
-    const safeName = sanitizeText(fileName?.replace(/\.[^/.]+$/, '')) || '가져오기';
-    const normalizedText = text.replace(/^\uFEFF/, '');
-    let tables = null;
-    if (normalizedText.trim().startsWith('<')) {
-      tables = parseSpreadsheetXml(normalizedText);
-    } else {
-      tables = [parseCsvTable(normalizedText, safeName)];
-    }
-    const payload = buildImportPayload(tables);
-    setGroupPanelOpen(false);
-    localStorage.removeItem(STORAGE_KEY);
-    applyState(payload);
-    saveState();
-  }
-
-  async function importFromFiles(files) {
-    const tables = [];
-    for (const file of files) {
-      const safeName = sanitizeText(file.name?.replace(/\.[^/.]+$/, '')) || '가져오기';
-      const ext = (file.name || '').split('.').pop().toLowerCase();
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      const isZip = bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b;
-      const canUseSheetJs = !!(window.XLSX && typeof window.XLSX.read === 'function');
-
-      if (ext === 'xlsx' || ext === 'xls' || isZip) {
-        try {
-          if (canUseSheetJs) {
-            const parsed = await parseWithSheetJs(buffer, safeName);
-            parsed.forEach((table) => {
-              if (!table.name) table.name = safeName;
-              tables.push(table);
-            });
-            continue;
-          }
-          if (ext === 'xlsx' || isZip) {
-            const parsed = await parseXlsx(buffer);
-            parsed.forEach((table) => {
-              if (!table.name) table.name = safeName;
-              tables.push(table);
-            });
-            continue;
-          }
-        } catch (err) {
-          if (ext === 'xls') {
-            const textFallback = decodeUtf8(bytes).replace(/^\uFEFF/, '');
-            if (textFallback.trim().startsWith('<')) {
-              const parsed = parseSpreadsheetXml(textFallback);
-              parsed.forEach((table) => {
-                if (!table.name) table.name = safeName;
-                tables.push(table);
-              });
-              continue;
-            }
-          }
-          throw err;
-        }
-      }
-
-      const text = decodeUtf8(bytes);
-      const normalizedText = text.replace(/^\uFEFF/, '');
-      if (normalizedText.trim().startsWith('<')) {
-        const parsed = parseSpreadsheetXml(normalizedText);
-        parsed.forEach((table) => {
-          if (!table.name) table.name = safeName;
-          tables.push(table);
-        });
-        continue;
-      }
-
-      if (ext === 'xls') {
-        throw new Error('XLS 파일은 SheetJS가 필요합니다.');
-      }
-
-      tables.push(parseCsvTable(normalizedText, safeName));
-    }
-    if (!tables.length) {
-      throw new Error('가져올 데이터가 없습니다.');
-    }
-    const payload = buildImportPayload(tables);
-    setGroupPanelOpen(false);
-    localStorage.removeItem(STORAGE_KEY);
-    applyState(payload);
-    saveState();
-  }
-
-  function resetProject() {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (err) {
-      console.warn('Failed to clear logger state', err);
-    }
-    setGroupPanelOpen(false);
-    applyState({ version: 1, groups: [], autoSeriesMap: [], lastActiveGroupId: null });
-    createGroup();
-  }
-
-  function fillStorageForTest() {
-    if (!window.localStorage) return;
-    storageWarned = false;
-    const key = `${DUMMY_PREFIX}blob`;
-    const targetBytes = Math.floor(LOCAL_STORAGE_QUOTA_BYTES * 0.82);
-    if (localStorage.getItem(key)) {
-      localStorage.removeItem(key);
-    }
-    const baseUsage = getLocalStorageUsageBytes();
-    const neededBytes = Math.max(0, targetBytes - baseUsage);
-    const targetChars = Math.max(1, Math.ceil(neededBytes / 2));
-    const value = '0'.repeat(targetChars);
-    try {
-      localStorage.setItem(key, value);
-    } catch (err) {
-      if (err && err.name === 'QuotaExceededError') {
-        showNotification('로컬 스토리지 용량이 부족합니다.', 'error');
-      } else {
-        showNotification('용량 테스트 데이터 저장 중 오류가 발생했습니다.', 'error');
-      }
-      console.warn('Failed to fill localStorage', err);
-      return;
-    }
-
-    const finalUsage = getLocalStorageUsageBytes();
-    const percent = Math.round((finalUsage / LOCAL_STORAGE_QUOTA_BYTES) * 100);
-    if (finalUsage >= targetBytes) {
-      showNotification(`로컬 스토리지 사용량이 ${percent}% 입니다.`, 'error');
-    } else {
-      showNotification('용량 테스트를 진행했지만 80%에 도달하지 못했습니다.', 'error');
-    }
-
-    checkStorageUsage({ forceToast: true });
-    scheduleStorageWarningCheck();
-  }
-
-  async function clearStorageTestData() {
-    if (window.localStorage) {
-      const keys = Object.keys(localStorage);
-      keys.forEach((key) => {
-        if (key.startsWith(DUMMY_PREFIX)) {
-          localStorage.removeItem(key);
-        }
-      });
-    }
-    if (window.indexedDB) {
-      try {
-        const db = await openDummyDb();
-        if (db) {
-          const tx = db.transaction(DUMMY_STORE, 'readwrite');
-          tx.objectStore(DUMMY_STORE).clear();
-          await new Promise((resolve) => {
-            tx.oncomplete = resolve;
-            tx.onerror = resolve;
-          });
-          db.close();
-        }
-      } catch (err) {
-        console.warn('Failed to clear IndexedDB dummy data', err);
-      }
-    }
-    storageWarned = false;
-    checkStorageUsage({ forceToast: true });
   }
 
   function setConnectBtnText(text) {
@@ -1906,13 +594,66 @@
       group.graph.setStartTime(minTime);
       if (!group.isFolded) {
         syncGraphSize(group, maxTime);
-        group.graph.render();
         const scroll = group.elements.scroll;
         if (scroll) {
           scroll.scrollLeft = scroll.scrollWidth - scroll.clientWidth;
         }
+        updateGraphViewport(group);
+        group.graph.render();
       }
     }
+  }
+
+  function applyState(payload) {
+    groups.forEach((group) => group.elements.resizeObserver?.disconnect?.());
+    groups.splice(0, groups.length);
+    labelMap.clear();
+    autoSeriesMap.length = 0;
+    lastActiveGroupId = null;
+    groupCounter = 0;
+    seriesCounter = 0;
+
+    if (groupListEl) groupListEl.innerHTML = '';
+    if (graphListEl) graphListEl.innerHTML = '';
+
+    if (!payload || !Array.isArray(payload.groups)) return false;
+
+    payload.groups.forEach((groupState) => {
+      createGroupFromState(groupState);
+    });
+
+    payload.groups.forEach((groupState) => {
+      const group = getGroupById(groupState?.id);
+      if (!group) return;
+      if (Number.isFinite(groupState?.bodyHeight) && group.elements.body) {
+        group.elements.body.style.height = `${groupState.bodyHeight}px`;
+      }
+      if (groupState?.isFolded) {
+        foldGroup(group, group.elements.body?.clientHeight || groupState.bodyHeight || 0);
+      }
+      restoreGroupData(group, groupState);
+    });
+
+    if (Array.isArray(payload.autoSeriesMap)) {
+      payload.autoSeriesMap.forEach((seriesId, index) => {
+        if (typeof seriesId !== 'string') {
+          autoSeriesMap[index] = null;
+          return;
+        }
+        const found = findSeriesById(seriesId);
+        autoSeriesMap[index] = found ? seriesId : null;
+      });
+    }
+
+    if (typeof payload.lastActiveGroupId === 'string' && getGroupById(payload.lastActiveGroupId)) {
+      lastActiveGroupId = payload.lastActiveGroupId;
+    } else {
+      lastActiveGroupId = groups[groups.length - 1]?.id || groups[0]?.id || null;
+    }
+
+    alignGroupsToGlobalTimeline();
+    refreshDeleteStates();
+    return groups.length > 0;
   }
 
   function getGroupRangeFromData(group) {
@@ -1996,8 +737,9 @@
           group.graph?.setStartTime(group.startTime);
         }
         syncGraphSize(group);
-        if (!group.isFolded) group.graph?.render();
         if (scroll) scroll.scrollLeft = 0;
+        updateGraphViewport(group);
+        if (!group.isFolded) group.graph?.render();
         return;
       }
 
@@ -2006,7 +748,6 @@
       const wasFollowing = group.isFollowing;
       const prevScrollLeft = scroll ? scroll.scrollLeft : 0;
       syncGraphSize(group, globalMax);
-      if (!group.isFolded) group.graph?.render();
       if (scroll) {
         if (wasFollowing) {
           scroll.scrollLeft = scroll.scrollWidth - scroll.clientWidth;
@@ -2014,22 +755,9 @@
           scroll.scrollLeft = Math.min(prevScrollLeft, Math.max(0, scroll.scrollWidth - scroll.clientWidth));
         }
       }
+      updateGraphViewport(group);
+      if (!group.isFolded) group.graph?.render();
     });
-  }
-
-  function loadState() {
-    if (!window.localStorage) return false;
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return false;
-    let payload = null;
-    try {
-      payload = JSON.parse(raw);
-    } catch (err) {
-      console.warn('Failed to parse state', err);
-      return false;
-    }
-    if (!payload || !Array.isArray(payload.groups)) return false;
-    return applyState(payload);
   }
 
   function buildSeriesRow(group, series) {
@@ -2078,7 +806,7 @@
     deleteSeriesBtn.type = 'button';
     deleteSeriesBtn.className = 'series-delete';
     deleteSeriesBtn.setAttribute('aria-label', '항목 삭제');
-    deleteSeriesBtn.textContent = '×';
+    deleteSeriesBtn.textContent = 'x';
     deleteSeriesBtn.addEventListener('click', () => {
       if (group.series.length <= 1) return;
       removeSeries(group, series.id);
@@ -2127,13 +855,13 @@
 
     const meta = document.createElement('span');
     meta.className = 'group-meta';
-    meta.textContent = `채널 ${group.series.length}`;
+    meta.textContent = `항목 ${group.series.length}`;
 
     const deleteBtn = document.createElement('button');
     deleteBtn.type = 'button';
     deleteBtn.className = 'group-delete';
     deleteBtn.setAttribute('aria-label', '그룹 삭제');
-    deleteBtn.textContent = '×';
+    deleteBtn.textContent = 'x';
     deleteBtn.addEventListener('click', () => {
       if (groups.length <= 1) return;
       removeGroup(group.id);
@@ -2206,7 +934,7 @@
     headerTitle.textContent = group.name;
     const headerMeta = document.createElement('div');
     headerMeta.className = 'graph-meta';
-    headerMeta.textContent = `채널 ${group.series.length}`;
+    headerMeta.textContent = `항목 ${group.series.length}`;
     headerInfo.appendChild(headerTitle);
     headerInfo.appendChild(headerMeta);
 
@@ -2224,6 +952,10 @@
     scroll.className = 'graph-scroll';
 
     const canvas = document.createElement('canvas');
+    const track = document.createElement('div');
+    track.className = 'graph-track';
+    scroll.appendChild(track);
+    canvas.className = 'graph-canvas';
     scroll.appendChild(canvas);
 
     const axis = document.createElement('div');
@@ -2266,6 +998,7 @@
       header,
       body,
       scroll,
+      track,
       canvas,
       axis,
       axisCanvas,
@@ -2309,10 +1042,10 @@
 
   function updateGroupMeta(group) {
     if (group.elements.meta) {
-      group.elements.meta.textContent = `채널 ${group.series.length}`;
+      group.elements.meta.textContent = `항목 ${group.series.length}`;
     }
     if (group.elements.groupMetaEl) {
-      group.elements.groupMetaEl.textContent = `채널 ${group.series.length}`;
+      group.elements.groupMetaEl.textContent = `항목 ${group.series.length}`;
     }
   }
 
@@ -2542,7 +1275,7 @@
         if (canceled || dragStarted) return;
         const group = getGroupById(groupId);
         if (!group || group.series.length <= 1) {
-          showNotification('Series move needs 2+ items in the group.', 'error');
+          showNotification('항목이 1개인 그룹은 이동할 수 없습니다.', 'error');
           canceled = true;
           return;
         }
@@ -3021,7 +1754,7 @@
       dot.className = 'series-color';
       dot.style.background = series.color;
       const text = document.createElement('span');
-      text.textContent = series.label || '미지정';
+      text.textContent = series.label || '라벨 없음';
       item.appendChild(dot);
       item.appendChild(text);
       legend.appendChild(item);
@@ -3052,7 +1785,7 @@
       dot.style.background = series.color || '#667eea';
       const label = document.createElement('span');
       label.className = 'graph-tooltip-label';
-      label.textContent = series.label || '미지정';
+      label.textContent = series.label || '라벨 없음';
       const value = document.createElement('span');
       value.className = 'graph-tooltip-value';
       value.textContent = formatValue(series.point?.v);
@@ -3090,8 +1823,10 @@
     };
 
     const showAt = (event) => {
-      const rect = scroll.getBoundingClientRect();
-      const x = event.clientX - rect.left + scroll.scrollLeft;
+      const rect = group.elements.canvas
+        ? group.elements.canvas.getBoundingClientRect()
+        : scroll.getBoundingClientRect();
+      const x = event.clientX - rect.left;
       const info = graph.getHoverInfo(x, HOVER_TOLERANCE_PX);
       if (!info) {
         hide();
@@ -3111,9 +1846,16 @@
   function setupScrollBehavior(group) {
     const scroll = group.elements.scroll;
     if (!scroll) return;
+    let rafId = null;
     scroll.addEventListener('scroll', () => {
       const maxScroll = scroll.scrollWidth - scroll.clientWidth;
       group.isFollowing = scroll.scrollLeft >= maxScroll - 16;
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updateGraphViewport(group);
+        if (!group.isFolded) group.graph?.render();
+      });
     });
   }
 
@@ -3154,8 +1896,9 @@
 
     const finishResize = (forceFold = false) => {
       if (!isResizingGraph) return;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
       document.body.classList.remove('is-resizing');
       isResizingGraph = false;
       if (rafId) {
@@ -3196,7 +1939,8 @@
       finishResize(false);
     };
 
-    handle.addEventListener('mousedown', (event) => {
+    handle.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
       event.preventDefault();
       if (group.isFolded) {
         unfoldGroup(group);
@@ -3205,8 +1949,12 @@
       document.body.classList.add('is-resizing');
       startY = event.clientY;
       startHeight = body.getBoundingClientRect().height;
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
+      if (handle.setPointerCapture) {
+        try { handle.setPointerCapture(event.pointerId); } catch (_) {}
+      }
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
     });
   }
 
@@ -3228,6 +1976,16 @@
     group.graph?.render();
   }
 
+  function updateGraphViewport(group) {
+    const scroll = group.elements.scroll;
+    if (!scroll || !group.graph) return;
+    const baseStart = Number.isFinite(group.displayStartTime)
+      ? group.displayStartTime
+      : (Number.isFinite(group.startTime) ? group.startTime : Date.now());
+    const viewStart = baseStart + (scroll.scrollLeft / GRAPH_CONFIG.pxPerSec) * 1000;
+    group.graph.setViewStartTime(viewStart);
+  }
+
   function syncGraphSize(group, endTime) {
     if (!group.elements.body || !group.graph) return;
     const height = Math.max(1, group.elements.body.clientHeight - SCROLLBAR_PADDING);
@@ -3237,11 +1995,19 @@
       ? group.displayStartTime
       : (Number.isFinite(group.startTime) ? group.startTime : referenceTime);
     const elapsed = Math.max(0, referenceTime - start);
-    const width = Math.max(
-      containerWidth,
-      GRAPH_CONFIG.padding.left + GRAPH_CONFIG.padding.right + (elapsed / 1000) * GRAPH_CONFIG.pxPerSec
-    );
-    group.graph.setSize(width, height);
+    const viewportWidth = Math.max(1, containerWidth);
+    const baseWidth = Math.max(viewportWidth, GRAPH_CONFIG.padding.left + GRAPH_CONFIG.padding.right);
+    const contentWidth = elapsed > 0
+      ? Math.max(
+        baseWidth,
+        GRAPH_CONFIG.padding.left + GRAPH_CONFIG.padding.right + (elapsed / 1000) * GRAPH_CONFIG.pxPerSec
+      )
+      : baseWidth;
+    if (group.elements.track) {
+      group.elements.track.style.width = `${contentWidth}px`;
+    }
+    group.graph.setSize(viewportWidth, height);
+    updateGraphViewport(group);
   }
 
   function appendPoint(group, series, value, timestamp) {
@@ -3260,13 +2026,19 @@
     const wasFollowing = group.isFollowing;
     const prevScrollLeft = scroll.scrollLeft;
     syncGraphSize(group, timestamp);
-    if (!group.isFolded) group.graph?.render();
-
     if (wasFollowing) {
       scroll.scrollLeft = scroll.scrollWidth - scroll.clientWidth;
     } else {
       scroll.scrollLeft = prevScrollLeft;
     }
+    updateGraphViewport(group);
+    if (!group.isFolded) group.graph?.render();
+  }
+
+  function isStrictNumberString(value) {
+    const text = String(value || '').trim();
+    if (!text) return false;
+    return /^[-+]?(\d+(\.\d+)?|\.\d+)(e[-+]?\d+)?$/i.test(text);
   }
 
   function parseIncoming(text) {
@@ -3284,34 +2056,29 @@
 
     const parts = raw.split(/[;,]/).map((p) => p.trim()).filter(Boolean);
     const results = [];
-    let unlabeledIndex = 0;
+    let invalid = false;
 
     parts.forEach((part) => {
-      let label = null;
-      let valueText = part;
-      const delimiterIndex = part.indexOf('/');
-      if (delimiterIndex >= 0) {
-        label = part.slice(0, delimiterIndex).trim() || null;
-        valueText = part.slice(delimiterIndex + 1).trim();
+      const match = part.match(/^([^/]+)\/([-+]?(\d+(\.\d+)?|\.\d+)(e[-+]?\d+)?)$/i);
+      if (!match) {
+        invalid = true;
+        return;
       }
-
-      const value = parseFloat(valueText);
-      if (Number.isFinite(value)) {
-        const sample = { label, value };
-        if (!label) {
-          sample.unlabeledIndex = unlabeledIndex;
-          unlabeledIndex += 1;
-        }
-        results.push(sample);
+      const label = match[1].trim();
+      const valueText = match[2].trim();
+      if (!label || !isStrictNumberString(valueText)) {
+        invalid = true;
+        return;
       }
+      const value = Number(valueText);
+      if (!Number.isFinite(value)) {
+        invalid = true;
+        return;
+      }
+      results.push({ label, value });
     });
 
-    if (!results.length) {
-      const value = parseFloat(raw);
-      if (Number.isFinite(value)) {
-        results.push({ label: null, value, unlabeledIndex: 0 });
-      }
-    }
+    if (invalid) return [];
 
     return results;
   }
@@ -3411,7 +2178,7 @@
     const cls = className || '';
     let status = 'disconnected';
     if (/connecting/.test(cls) || /connecting/i.test(text || '') || /연결 중/.test(text || '')) status = 'connecting';
-    else if (/connected/.test(cls) || /connected/i.test(text || '') || /연결/.test(text || '')) status = 'connected';
+    else if (/connected/.test(cls) || /connected/i.test(text || '') || /연결됨/.test(text || '')) status = 'connected';
     renderStatus(text, status);
     if (window.connectionManager?.notifySerialStatusFromUI) {
       window.connectionManager.notifySerialStatusFromUI(text, className);
@@ -3428,7 +2195,7 @@
 
   updateConnTypeLabel();
   setConnectBtnText(window.isBluetoothMode ? '블루투스 연결' : '시리얼 연결');
-  renderStatus('연결 상태', 'disconnected');
+  renderStatus('연결 안 됨', 'disconnected');
 
   handleMobileModeMaybeChanged();
 
@@ -3495,7 +2262,7 @@
         console.warn('연결 취소/거절', e);
       } else {
         console.error(e);
-        showNotification('연결 처리 오류가 발생했습니다.', 'error');
+        showNotification('연결 처리 중 오류가 발생했습니다.', 'error');
       }
     } finally {
       if (window.connectionManager.isConnected()) setConnectBtnText('연결 해제');
@@ -3522,71 +2289,54 @@
       document.body.style.overflow = '';
     }
   });
-
-  exportCsvBtn?.removeAttribute('disabled');
+  exportCsvBtn?.removeAttribute('disabled');
   importCsvBtn?.removeAttribute('disabled');
   newProjectBtn?.removeAttribute('disabled');
   storageTestBtn?.removeAttribute('disabled');
   storageClearBtn?.removeAttribute('disabled');
   storageUsageBtn?.removeAttribute('disabled');
 
-  exportCsvBtn?.addEventListener('click', openExportModal);
-  exportCancelBtn?.addEventListener('click', () => {
-    pendingImportAfterExport = false;
-    closeExportModal();
-  });
-  exportConfirmBtn?.addEventListener('click', () => {
-    const ids = getSelectedGroupIds();
-    const selectedGroups = ids.map((id) => getGroupById(id)).filter(Boolean);
-    const separate = exportSeparate ? exportSeparate.checked : true;
-    const ok = exportSelectedGroups(selectedGroups, { separate });
-    if (ok) {
-      closeExportModal();
-      if (pendingImportAfterExport) {
-        pendingImportAfterExport = false;
-        setTimeout(() => importFileInput?.click(), 200);
-      }
-    }
-  });
-  exportSelectAll?.addEventListener('change', () => {
-    if (!exportGroupList) return;
-    const inputs = exportGroupList.querySelectorAll('input[type="checkbox"]');
-    inputs.forEach((input) => {
-      input.checked = exportSelectAll.checked;
-    });
-  });
-  exportGroupList?.addEventListener('change', () => {
-    if (!exportSelectAll || !exportGroupList) return;
-    const inputs = Array.from(exportGroupList.querySelectorAll('input[type="checkbox"]'));
-    if (!inputs.length) return;
-    const allChecked = inputs.every((input) => input.checked);
-    const someChecked = inputs.some((input) => input.checked);
-    exportSelectAll.checked = allChecked;
-    exportSelectAll.indeterminate = !allChecked && someChecked;
-  });
-  exportModal?.addEventListener('click', (event) => {
-    if (event.target === exportModal) closeExportModal();
+  storageManager?.init({
+    getGroups: () => groups,
+    getLastActiveGroupId: () => lastActiveGroupId,
+    autoSeriesMap,
+    alignGroupsToGlobalTimeline,
+    showNotification,
+    applyState,
+    setGroupPanelOpen,
+    createGroup,
   });
 
-  importCsvBtn?.addEventListener('click', openImportModal);
+  excelIO?.init({
+    exportBtn: exportCsvBtn,
+    importBtn: importCsvBtn,
+    exportModal,
+    exportSelectAll,
+    exportSeparate,
+    exportGroupList,
+    exportCancelBtn,
+    exportConfirmBtn,
+    importModal,
+    importCancelBtn,
+    importSaveBtn,
+    importConfirmBtn,
+    importFileInput,
+    groups,
+    colorPalette: COLOR_PALETTE,
+    sanitizeText,
+    normalizeLabel,
+    showNotification,
+    setGroupPanelOpen,
+    applyState,
+    saveState,
+    setModalOpen,
+    getGroupById,
+  });
+
   newProjectBtn?.addEventListener('click', showNewProjectModal);
   storageTestBtn?.addEventListener('click', fillStorageForTest);
   storageClearBtn?.addEventListener('click', clearStorageTestData);
   storageUsageBtn?.addEventListener('click', logLocalStorageUsage);
-  importCancelBtn?.addEventListener('click', closeImportModal);
-  importSaveBtn?.addEventListener('click', () => {
-    pendingImportAfterExport = true;
-    closeImportModal();
-    openExportModal();
-  });
-  importConfirmBtn?.addEventListener('click', () => {
-    pendingImportAfterExport = false;
-    closeImportModal();
-    importFileInput?.click();
-  });
-  importModal?.addEventListener('click', (event) => {
-    if (event.target === importModal) closeImportModal();
-  });
 
   newProjectCancelBtn?.addEventListener('click', hideNewProjectModal);
   newProjectConfirmBtn?.addEventListener('click', () => {
@@ -3595,20 +2345,6 @@
   });
   newProjectModal?.addEventListener('click', (event) => {
     if (event.target === newProjectModal) hideNewProjectModal();
-  });
-  importFileInput?.addEventListener('change', async () => {
-    const files = Array.from(importFileInput.files || []);
-    if (!files.length) return;
-    try {
-      await importFromFiles(files);
-      showNotification('데이터를 성공적으로 가져왔습니다.');
-    } catch (err) {
-      const message = err && err.message ? err.message : '데이터 가져오기 중 오류가 발생했습니다.';
-      console.error('Import failed:', err);
-      showNotification(`가져오기 실패: ${message}`, 'error');
-    } finally {
-      importFileInput.value = '';
-    }
   });
 
   groupPanelToggleBtn?.addEventListener('click', () => setGroupPanelOpen(!isGroupPanelOpen));
@@ -3626,7 +2362,6 @@
       }
       if (exportModal?.classList.contains('open')) {
         closeExportModal();
-        pendingImportAfterExport = false;
         return;
       }
       if (importModal?.classList.contains('open')) {
@@ -3663,7 +2398,7 @@
     isEditMode = enabled;
     document.body.classList.toggle('is-editing', isEditMode);
     if (editGroupsBtn) {
-      editGroupsBtn.textContent = isEditMode ? '편집 종료' : '편집 시작';
+      editGroupsBtn.textContent = isEditMode ? '편집 종료' : '편집';
     }
     if (addGroupBtn) {
       addGroupBtn.style.display = isEditMode ? '' : 'none';
@@ -3693,14 +2428,28 @@
   document.addEventListener('DOMContentLoaded', applyLayout);
   applyLayout();
 
-  if (!loadState()) {
-    createGroup();
-  }
-  checkStorageUsage();
-  attachGroupOrderDropTargets();
-  setupGroupDragWheelScroll();
-  setEditMode(false);
+  const boot = async () => {
+    const loaded = await loadState();
+    if (!loaded) {
+      createGroup();
+    }
+    checkStorageUsage();
+    attachGroupOrderDropTargets();
+    setupGroupDragWheelScroll();
+    setEditMode(false);
+  };
+  boot();
 })();
+
+
+
+
+
+
+
+
+
+
 
 
 

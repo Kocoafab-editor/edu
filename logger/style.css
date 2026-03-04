@@ -919,6 +919,7 @@ body.is-touch-dragging {
   color: #94a3b8;
   font-weight: 700;
   user-select: none;
+  touch-action: none;
 }
 
 .graph-card.folded .graph-resize-handle::after {
@@ -947,9 +948,19 @@ body.is-touch-dragging {
   z-index: 1;
 }
 
-.graph-scroll canvas {
+.graph-track {
+  height: 1px;
+  width: 100%;
+  pointer-events: none;
+}
+
+.graph-scroll .graph-canvas {
+  position: sticky;
+  left: 0;
+  top: 0;
   display: block;
   height: 100%;
+  z-index: 2;
 }
 
 .graph-tooltip {
@@ -1117,6 +1128,17 @@ body.is-touch-dragging {
     width: 100%;
     justify-content: flex-start;
     margin-top: 6px;
+  }
+  .graph-resize-handle {
+    height: 32px;
+    margin-top: 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #eef3f6;
+  }
+  .graph-resize-handle::after {
+    content: '=';
+    font-size: 14px;
   }
 }
 

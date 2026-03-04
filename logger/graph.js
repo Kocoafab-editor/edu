@@ -28,6 +28,8 @@
       this.axisCtx = this.axisCanvas ? this.axisCanvas.getContext('2d') : null;
       this.axisWidth = this.axisCanvas ? (opts.axisWidth || this.options.padding.left) : 0;
       this.startTime = opts.startTime || null;
+      this.viewStartTime = null;
+      this.viewEndTime = null;
       this.width = canvas.clientWidth || 300;
       this.height = canvas.clientHeight || 150;
       this.setSeries(opts.series || []);
@@ -54,6 +56,15 @@
 
     setStartTime(ts) {
       if (Number.isFinite(ts)) this.startTime = ts;
+    }
+
+    setViewWindow(startTime, endTime) {
+      this.viewStartTime = Number.isFinite(startTime) ? startTime : null;
+      this.viewEndTime = Number.isFinite(endTime) ? endTime : null;
+    }
+
+    setViewStartTime(ts) {
+      this.viewStartTime = Number.isFinite(ts) ? ts : null;
     }
 
     addPoint(seriesId, point) {
@@ -92,7 +103,9 @@
       if (x < padding.left || x > padding.left + plotWidth) return null;
       const summary = this._summarizeData();
       if (!summary.hasData) return null;
-      const startTime = Number.isFinite(this.startTime) ? this.startTime : summary.minTime;
+      const startTime = Number.isFinite(this.viewStartTime)
+        ? this.viewStartTime
+        : (Number.isFinite(this.startTime) ? this.startTime : summary.minTime);
       const targetTime = startTime + ((x - padding.left) / this.options.pxPerSec) * 1000;
       const toleranceMs = (tolerancePx / this.options.pxPerSec) * 1000;
 
@@ -144,9 +157,14 @@
       const paddedMax = maxVal + span * 0.1;
       const valueRange = paddedMax - paddedMin || 1;
 
-      const startTime = Number.isFinite(this.startTime) ? this.startTime : summary.minTime;
-      const endTime = summary.maxTime;
+      const baseStartTime = Number.isFinite(this.startTime) ? this.startTime : summary.minTime;
+      const viewStartTime = Number.isFinite(this.viewStartTime) ? this.viewStartTime : baseStartTime;
       const pxPerSec = this.options.pxPerSec;
+      const viewEndTime = Number.isFinite(this.viewEndTime)
+        ? this.viewEndTime
+        : viewStartTime + (plotWidth / pxPerSec) * 1000;
+      const startTime = viewStartTime;
+      const endTime = Math.max(viewEndTime, viewStartTime);
 
       ctx.font = this.options.font;
       ctx.textBaseline = 'middle';
