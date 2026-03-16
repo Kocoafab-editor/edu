@@ -42,10 +42,10 @@ function clampAngle(value) {
 }
 
 function applyAnglesToRobot(angles) {
-  jointEls.frontShoulder.style.transform = `rotate(${angles.frontShoulder}deg)`;
-  jointEls.frontElbow.style.transform = `rotate(${angles.frontElbow + ELBOW_ZERO_OFFSET}deg)`;
-  jointEls.rearShoulder.style.transform = `rotate(${angles.rearShoulder}deg)`;
-  jointEls.rearElbow.style.transform = `rotate(${angles.rearElbow + ELBOW_ZERO_OFFSET}deg)`;
+  jointEls.frontShoulder.style.transform = `rotate(${-angles.frontShoulder}deg)`;
+  jointEls.frontElbow.style.transform = `rotate(${-angles.frontElbow + ELBOW_ZERO_OFFSET}deg)`;
+  jointEls.rearShoulder.style.transform = `rotate(${-angles.rearShoulder}deg)`;
+  jointEls.rearElbow.style.transform = `rotate(${-angles.rearElbow + ELBOW_ZERO_OFFSET}deg)`;
 }
 
 function syncInputs(angles) {

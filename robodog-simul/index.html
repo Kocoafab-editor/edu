@@ -17,7 +17,11 @@
       <a href="../index.html" class="back-btn" title="메인으로 돌아가기">&lt; 메인화면</a>
       <div class="header-content">
         <h1>로보독 다리 시뮬레이션</h1>
-        <p class="subtitle">좌/우 뷰에서 앞/뒤 다리 모터 각도를 -90~90도로 조절합니다.</p>
+        <p class="subtitle">좌/우 뷰에서 앞/뒤 다리 모터 각도를 조절합니다.</p>
+        <ul style="list-style: none; padding-left: 0; margin-top: 0.5em;">
+            <li><strong>어깨 관절</strong>: -90°(뒤로) ~ 90°(앞으로)</li>
+            <li><strong>무릎 관절</strong>: -90°(뒤로) ~ 70°(앞으로)</li>
+        </ul>
       </div>
     </div>
   <div class="app-container">
@@ -73,8 +77,8 @@
             </label>
             <label class="control-row">
               <span>무릎</span>
-              <input type="range" min="-90" max="90" step="1" value="0" data-key="frontElbow" />
-              <input type="number" min="-90" max="90" step="1" value="0" data-key="frontElbow" />
+              <input type="range" min="-90" max="70" step="1" value="0" data-key="frontElbow" />
+              <input type="number" min="-90" max="70" step="1" value="0" data-key="frontElbow" />
             </label>
           </fieldset>
 
@@ -87,8 +91,8 @@
             </label>
             <label class="control-row">
               <span>무릎</span>
-              <input type="range" min="-90" max="90" step="1" value="0" data-key="rearElbow" />
-              <input type="number" min="-90" max="90" step="1" value="0" data-key="rearElbow" />
+              <input type="range" min="-90" max="70" step="1" value="0" data-key="rearElbow" />
+              <input type="number" min="-90" max="70" step="1" value="0" data-key="rearElbow" />
             </label>
           </fieldset>
         </section>
