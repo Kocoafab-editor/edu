@@ -1,4 +1,4 @@
-* {
+﻿* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -179,6 +179,15 @@ body {
         padding: 5px 8px;
     }
 
+    .header-settings-center .model-url-top-row {
+        flex-direction: column;
+    }
+
+    .header-settings-center .model-type-select {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
     .status-panel .status-label {
         font-size: 0.8em;
     }
@@ -236,10 +245,38 @@ body {
     gap: 8px;
     flex: 1;
     align-items: stretch;
+    min-width: 0;
+}
+
+.header-settings-center .model-url-top-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    min-width: 0;
+}
+
+.header-settings-center .model-type-select {
+    flex: 0 0 132px;
+    min-width: 132px;
 }
 
 .header-settings-center form .form-input {
     flex: 1;
+    min-width: 0;
+}
+
+.header-settings-center #loadModelBtn {
+    width: 100%;
+}
+
+.tm-mode-callout {
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #edf2f7;
+    color: #2d3748;
+    line-height: 1.5;
+    font-size: 0.95em;
 }
 
 /* 토글 컨테이너 스타일링 */
@@ -424,7 +461,7 @@ body {
     align-items: center;
     gap: 8px;
     margin-top: 7px;
-    margin-bottom: 13px;
+    margin-bottom: 7px;
 }
 
 .device-select {
@@ -1040,6 +1077,21 @@ body {
     width: 100%;
     min-width: 0;
     height: auto;
+}
+
+.nav-overlay.open .header-settings-center .model-url-top-row {
+    flex-direction: column;
+}
+
+.nav-overlay.open .header-settings-center .model-type-select {
+    width: 100%;
+    min-width: 0;
+}
+
+.nav-overlay.open .header-settings-center #modelUrlForm .btn {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
 }
 
 /* 오버레이 내부 버튼 폭 조정 (데스크톱/태블릿) */

@@ -1,14 +1,21 @@
-/*
+﻿/*
 Teachable Machine과 Microbit/ESP32 연동을 위한 p5.js 스케치
 */
 let modelURL = "";
 let classifier;
+let poseModel;
 let video;
 let flippedVideo;
 let label;
 let prevLabel;
+let currentPose = null;
+let poseSourceCanvas = null;
+let poseSourceContext = null;
 let videoReady = false;
 let canvasCreated = false;
+let inferenceToken = 0;
+let imageLoopPending = false;
+let poseLoopPending = false;
 
 let sendTimerId = null;
 let prevSentLabel = null; 
@@ -27,12 +34,292 @@ const DISPLAY_HEIGHT = 360;
 
 // HTML에서 호출되는 모델 로드 함수
 window.setModelUrl = function(url) {
-  if (!url.endsWith('/')) url += '/';
-  modelURL = url;
+  const normalizedUrl = normalizeModelUrl(url);
+  if (!normalizedUrl) {
+    try { window.showNotification?.("URL이 유효하지 않습니다. 티처블머신 모델 주소를 확인하세요.", "error"); } catch (e) {}
+    return false;
+  }
+  modelURL = normalizedUrl;
+  try {
+    const input = document.getElementById('modelUrlInput');
+    if (input) input.value = normalizedUrl;
+  } catch (e) {}
   loadAndStartModel();
+  return true;
 };
 
 window.SendStats = window.SendStats || { calls: 0, lastSentAt: 0 };
+
+function normalizeModelUrl(url) {
+  const raw = (url || "").trim();
+  if (!raw) return "";
+
+  try {
+    const parsed = new URL(raw, window.location.href);
+    let pathname = parsed.pathname || "";
+
+    if (/\/(?:model|metadata)\.json$/i.test(pathname)) {
+      pathname = pathname.replace(/\/(?:model|metadata)\.json$/i, "/");
+    } else if (!pathname.endsWith("/")) {
+      pathname += "/";
+    }
+
+    parsed.pathname = pathname;
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.href;
+  } catch (e) {
+    return "";
+  }
+}
+
+function showModelLoadError(error, mode = getRecognitionMode()) {
+  const messageText = String(error?.message || error || "");
+  const isRuntimeError = /tmimage|tmpose|tensorflow|tf is not defined|library is not available/i.test(messageText);
+  const isFetchError = /failed to fetch|load failed|404|networkerror|network error/i.test(messageText);
+
+  let notice = "";
+  if (isRuntimeError) {
+    notice = `${mode === 'pose' ? '포즈' : '이미지'} 런타임을 불러오지 못했습니다. 페이지를 새로고침한 뒤 다시 시도하세요.`;
+  } else if (isFetchError) {
+    notice = "모델을 불러오지 못했습니다. 티처블머신 공유 URL과 공개 상태를 확인하세요.";
+  } else {
+    notice = "모델을 불러오지 못했습니다. 티처블머신 공유 URL을 확인하세요.";
+  }
+
+  try { window.showNotification?.(notice, "error"); } catch (e) {}
+}
+
+function getRecognitionMode() {
+  return window.currentRecognitionMode === 'pose' ? 'pose' : 'image';
+}
+
+function getModeMessages(mode = getRecognitionMode()) {
+  if (mode === 'pose') {
+    return {
+      waiting: "포즈 모델 URL을 입력하세요",
+      loading: "포즈 모델 로딩중...",
+      loaded: "포즈 모델 로드 완료",
+      failed: "포즈 모델 로드 실패",
+      live: "실시간 포즈 인식중",
+      idle: "포즈 모델 대기중"
+    };
+  }
+
+  return {
+    waiting: "이미지 모델 URL을 입력하세요",
+    loading: "이미지 모델 로딩중...",
+    loaded: "이미지 모델 로드 완료",
+    failed: "이미지 모델 로드 실패",
+    live: "실시간 이미지 인식중",
+    idle: "이미지 모델 대기중"
+  };
+}
+
+function clearPredictionState() {
+  label = "";
+  prevLabel = "";
+  currentPose = null;
+  window.currentLabel = "";
+  prevSentLabel = null;
+  if (typeof _pendingTimer !== 'undefined' && _pendingTimer) {
+    clearTimeout(_pendingTimer);
+    _pendingTimer = null;
+  }
+  if (typeof _pendingLabel !== 'undefined') {
+    _pendingLabel = null;
+  }
+
+  try { window.updateRecognitionResult("-"); } catch (e) {}
+  try { window.PREDICT_UI.rebuild([]); } catch (e) {}
+}
+
+function stopCurrentInference(resetModels = true) {
+  inferenceToken += 1;
+  imageLoopPending = false;
+  poseLoopPending = false;
+  currentPose = null;
+
+  if (flippedVideo && typeof flippedVideo.remove === 'function') {
+    try { flippedVideo.remove(); } catch (e) {}
+  }
+  flippedVideo = null;
+
+  if (resetModels) {
+    classifier = null;
+    poseModel = null;
+  }
+}
+
+function startInferenceLoop(token = inferenceToken) {
+  if (token !== inferenceToken || !videoReady) return;
+  if (getRecognitionMode() === 'pose') classifyPose(token);
+  else classifyVideo(token);
+}
+
+function normalizePredictionResults(results) {
+  if (!results || !results.length) return [];
+
+  return results.map((item) => {
+    const normalizedLabel = item.label ?? item.className ?? "";
+    const normalizedProbability = item.confidence ?? item.probability ?? 0;
+    return {
+      label: normalizedLabel,
+      probability: normalizedProbability,
+      raw: {
+        ...item,
+        label: normalizedLabel,
+        className: normalizedLabel,
+        confidence: normalizedProbability,
+        probability: normalizedProbability
+      }
+    };
+  }).sort((a, b) => b.probability - a.probability);
+}
+
+function applyPredictionResults(normalizedResults) {
+  if (!normalizedResults || !normalizedResults.length) return;
+
+  try { window.PREDICT_UI.updateFromMl5(normalizedResults.map((item) => item.raw)); } catch (e) {}
+
+  const top = normalizedResults[0];
+  const second = normalizedResults[1] || { probability: 0 };
+  const topLbl = top.label;
+  const topP = top.probability ?? 0;
+  const secP = second.probability ?? 0;
+
+  const thr = window.PREDICT_THRESHOLD ?? 0.94;
+  const margin = window.PREDICT_MARGIN ?? 0.05;
+
+  if (topP >= thr && (topP - secP) >= margin) {
+    if (topLbl && topLbl !== window.currentLabel) {
+      try { window.PREDICT_UI.highlightSelected(topLbl); } catch (e) {}
+      window.updateRecognitionResult(topLbl);
+      window.currentLabel = topLbl;
+      sendLastLabel();
+    }
+  }
+
+  prevLabel = window.currentLabel;
+}
+
+function getVideoLayout(vid) {
+  const srcW = (vid && vid.elt && vid.elt.videoWidth) ? vid.elt.videoWidth : vid.width;
+  const srcH = (vid && vid.elt && vid.elt.videoHeight) ? vid.elt.videoHeight : vid.height;
+
+  if (!srcW || !srcH) {
+    return {
+      srcW: DISPLAY_WIDTH,
+      srcH: DISPLAY_HEIGHT,
+      fitScale: 1,
+      drawW: DISPLAY_WIDTH,
+      drawH: DISPLAY_HEIGHT,
+      dx: 0,
+      dy: 0
+    };
+  }
+
+  const fitScale = Math.min(DISPLAY_WIDTH / srcW, DISPLAY_HEIGHT / srcH);
+  const drawW = srcW * fitScale;
+  const drawH = srcH * fitScale;
+  const dx = (DISPLAY_WIDTH - drawW) / 2;
+  const dy = (DISPLAY_HEIGHT - drawH) / 2;
+
+  return { srcW, srcH, fitScale, drawW, drawH, dx, dy };
+}
+
+function getMirroredPoseSource() {
+  if (!video || !video.elt) return null;
+
+  const srcW = video.elt.videoWidth || video.width;
+  const srcH = video.elt.videoHeight || video.height;
+  if (!srcW || !srcH) return null;
+
+  if (!poseSourceCanvas) {
+    poseSourceCanvas = document.createElement('canvas');
+    poseSourceContext = poseSourceCanvas.getContext('2d');
+  }
+
+  if (poseSourceCanvas.width !== srcW || poseSourceCanvas.height !== srcH) {
+    poseSourceCanvas.width = srcW;
+    poseSourceCanvas.height = srcH;
+  }
+
+  poseSourceContext.save();
+  poseSourceContext.clearRect(0, 0, srcW, srcH);
+  poseSourceContext.translate(srcW, 0);
+  poseSourceContext.scale(-1, 1);
+  poseSourceContext.drawImage(video.elt, 0, 0, srcW, srcH);
+  poseSourceContext.restore();
+
+  return poseSourceCanvas;
+}
+
+function drawPoseOverlay(pose, vid) {
+  if (!pose || !pose.keypoints || !pose.keypoints.length) return;
+
+  const minConfidence = 0.35;
+  const { srcW, srcH, drawW, drawH, dx, dy } = getVideoLayout(vid);
+  const scaleX = drawW / srcW;
+  const scaleY = drawH / srcH;
+  const keypointMap = new Map();
+
+  pose.keypoints.forEach((keypoint) => {
+    if ((keypoint.score ?? 0) >= minConfidence && keypoint.part) {
+      keypointMap.set(keypoint.part, keypoint);
+    }
+  });
+
+  const adjacentPairs = [
+    ['leftShoulder', 'rightShoulder'],
+    ['leftShoulder', 'leftElbow'],
+    ['leftElbow', 'leftWrist'],
+    ['rightShoulder', 'rightElbow'],
+    ['rightElbow', 'rightWrist'],
+    ['leftShoulder', 'leftHip'],
+    ['rightShoulder', 'rightHip'],
+    ['leftHip', 'rightHip'],
+    ['leftHip', 'leftKnee'],
+    ['leftKnee', 'leftAnkle'],
+    ['rightHip', 'rightKnee'],
+    ['rightKnee', 'rightAnkle']
+  ];
+
+  push();
+  stroke(56, 189, 248);
+  strokeWeight(3);
+  adjacentPairs.forEach(([from, to]) => {
+    const start = keypointMap.get(from);
+    const end = keypointMap.get(to);
+    if (!start || !end) return;
+    line(
+      dx + start.position.x * scaleX,
+      dy + start.position.y * scaleY,
+      dx + end.position.x * scaleX,
+      dy + end.position.y * scaleY
+    );
+  });
+
+  noStroke();
+  fill(248, 250, 252);
+  pose.keypoints.forEach((keypoint) => {
+    if ((keypoint.score ?? 0) < minConfidence) return;
+    circle(
+      dx + keypoint.position.x * scaleX,
+      dy + keypoint.position.y * scaleY,
+      10
+    );
+  });
+  pop();
+}
+
+window.handleRecognitionModeChange = function() {
+  stopCurrentInference(true);
+  clearPredictionState();
+
+  if (modelURL) loadAndStartModel();
+  else window.updateModelStatus(getModeMessages().waiting, "status-waiting");
+};
 
 function _isConnected() {
   try { return !!(window.connectionManager && window.connectionManager.isConnected()); }
@@ -42,23 +329,44 @@ function _isConnected() {
 // 모델 로드 및 시작
 async function loadAndStartModel() {
   if (!modelURL) {
-    alert("모델 URL이 설정되지 않았습니다.");
+    try { window.showNotification?.("URL이 유효하지 않습니다. 티처블머신 모델 주소를 확인하세요.", "error"); } catch (e) {}
     return;
   }
-  
+
+  const mode = getRecognitionMode();
+  const modeMessages = getModeMessages(mode);
+  stopCurrentInference(true);
+  clearPredictionState();
+  const token = inferenceToken;
+
   try {
-    window.updateModelStatus("모델 로딩중...", "status-waiting");
-    classifier = await ml5.imageClassifier(modelURL + 'model.json');
-    
-    if (video && video.elt && video.elt.readyState >= 2) {
-      classifyVideo();
+    window.updateModelStatus(modeMessages.loading, "status-waiting");
+
+    if (mode === 'pose') {
+      if (!window.tmPose || typeof window.tmPose.load !== 'function') {
+        throw new Error("tmPose library is not available");
+      }
+      poseModel = await window.tmPose.load(modelURL + 'model.json', modelURL + 'metadata.json');
+    } else {
+      if (!window.tmImage || typeof window.tmImage.load !== 'function') {
+        throw new Error("tmImage library is not available");
+      }
+      classifier = await window.tmImage.load(modelURL + 'model.json', modelURL + 'metadata.json');
     }
-    
-    window.updateModelStatus("모델 로드 완료", "status-connected");
+
+    if (token !== inferenceToken) return;
+
+    if (video && video.elt && video.elt.readyState >= 2) {
+      startInferenceLoop(token);
+    }
+
+    window.updateModelStatus(modeMessages.loaded, "status-connected");
   } catch (e) {
     console.error("모델 로드 실패:", e);
-    alert("모델 로드에 실패했습니다. URL을 확인하세요.");
-    window.updateModelStatus("모델 로드 실패", "status-disconnected");
+    showModelLoadError(e, mode);
+    if (token === inferenceToken) {
+      window.updateModelStatus(modeMessages.failed, "status-disconnected");
+    }
   }
 }
 
@@ -77,7 +385,7 @@ function setup() {
   video.hide(); // Hide the raw video element
   
   // 초기 상태 메시지
-  window.updateModelStatus("모델 URL을 입력하세요", "status-waiting");
+  window.updateModelStatus(getModeMessages().waiting, "status-waiting");
 }
 
 function videoReady_callback() {
@@ -95,8 +403,8 @@ function videoReady_callback() {
   
   videoReady = true;
   // 모델이 이미 로드되어 있다면 분류 시작
-  if (classifier) {
-    classifyVideo();
+  if (classifier || poseModel) {
+    startInferenceLoop();
   }
 }
 
@@ -106,6 +414,9 @@ function draw() {
   if (video && videoReady) {
     // 항상 원본 비디오를 사용하되, drawVideo에서 좌우 반전 처리
     drawVideo(video);
+    if (getRecognitionMode() === 'pose' && currentPose) {
+      drawPoseOverlay(currentPose, video);
+    }
   }
   
   // 라벨 표시
@@ -127,10 +438,10 @@ function draw() {
   let statusText = "";
   if (!videoReady) {
     statusText = "카메라 초기화중...";
-  } else if (!classifier) {
-    statusText = "모델 대기중";
+  } else if (!classifier && !poseModel) {
+    statusText = getModeMessages().idle;
   } else {
-    statusText = "실시간 인식중";
+    statusText = getModeMessages().live;
   }
   
   text(statusText, 10, 20);
@@ -139,13 +450,7 @@ function draw() {
 // 비디오를 그리는 헬퍼 함수 (항상 좌우 반전)
 function drawVideo(vid) {
   // 원본 비율 유지하여 DISPLAY 영역에 맞추는 contain 스케일
-  const srcW = (vid && vid.elt && vid.elt.videoWidth) ? vid.elt.videoWidth : vid.width;
-  const srcH = (vid && vid.elt && vid.elt.videoHeight) ? vid.elt.videoHeight : vid.height;
-  const fitScale = Math.min(DISPLAY_WIDTH / srcW, DISPLAY_HEIGHT / srcH);
-  const drawW = srcW * fitScale;
-  const drawH = srcH * fitScale;
-  const dx = (DISPLAY_WIDTH - drawW) / 2; // 좌우 여백(필러박스)
-  const dy = (DISPLAY_HEIGHT - drawH) / 2; // 상하 여백(레터박스)
+  const { srcW, srcH, drawW, drawH, dx, dy } = getVideoLayout(vid);
 
   // 비디오 그리기 (좌우 반전)
   push();
@@ -170,43 +475,69 @@ function drawVideo(vid) {
   if (rightBarW > 0) rect(dx + drawW, 0, rightBarW, DISPLAY_HEIGHT);
 }
 
-function classifyVideo() {
-  if (!video || !classifier || !videoReady) return;
-  
-  // 원본 비디오 전체 프레임(좌우반전)으로 분류
-  flippedVideo = ml5.flipImage(video);
-  classifier.classify(flippedVideo, gotResult);
-  flippedVideo.remove();
+async function classifyVideo(token = inferenceToken) {
+  if (token !== inferenceToken || imageLoopPending || !video || !classifier || !videoReady) return;
+
+  imageLoopPending = true;
+
+  try {
+    const source = getMirroredPoseSource();
+    if (!source) return;
+
+    const results = await classifier.predict(source);
+    if (token !== inferenceToken) return;
+    await gotResult(null, results, token);
+  } catch (error) {
+    if (token === inferenceToken) {
+      console.error("이미지 추론 오류:", error);
+    }
+  } finally {
+    imageLoopPending = false;
+    if (token === inferenceToken && classifier && videoReady) {
+      window.requestAnimationFrame(() => classifyVideo(token));
+    }
+  }
 }
 
-async function gotResult(error, results) {
-  if (error) { console.error("분류 오류:", error); return; }
+async function gotResult(error, results, token = inferenceToken) {
+  if (token !== inferenceToken) return;
+  if (error) {
+    console.error("분류 오류:", error);
+    return;
+  }
 
   if (results && results.length > 0) {
-    // ① 막대 그래프 업데이트
-    try { window.PREDICT_UI.updateFromMl5(results); } catch(e){}
-
-    // ② 민감도/마진 조건을 만족할 때만 최종 라벨 확정
-    const top    = results[0];
-    const second = results[1] || {};
-    const topLbl = top.label ?? top.className;
-    const topP   = top.confidence ?? top.probability ?? 0;
-    const secP   = second.confidence ?? second.probability ?? 0;
-
-    const thr    = window.PREDICT_THRESHOLD ?? 0.94;
-    const margin = window.PREDICT_MARGIN    ?? 0.05;
-
-    if (topP >= thr && (topP - secP) >= margin) {
-      if (topLbl && topLbl !== window.currentLabel) {
-        try { window.PREDICT_UI.highlightSelected(topLbl); } catch(e){}
-        window.updateRecognitionResult(topLbl);
-        window.currentLabel = topLbl;
-        sendLastLabel();
-      }
-    }
-    prevLabel = window.currentLabel;
+    applyPredictionResults(normalizePredictionResults(results));
   }
-  classifyVideo(); // 다음 프레임
+}
+
+async function classifyPose(token = inferenceToken) {
+  if (token !== inferenceToken || poseLoopPending || !video || !poseModel || !videoReady) return;
+
+  poseLoopPending = true;
+
+  try {
+    const source = getMirroredPoseSource();
+    if (!source) return;
+
+    const { pose, posenetOutput } = await poseModel.estimatePose(source);
+    if (token !== inferenceToken) return;
+
+    currentPose = pose || null;
+    const predictions = await poseModel.predict(posenetOutput);
+    if (token !== inferenceToken) return;
+
+    applyPredictionResults(normalizePredictionResults(predictions));
+  } catch (error) {
+    if (token === inferenceToken) {
+      console.error("포즈 추론 오류:", error);
+    }
+  } finally {
+    poseLoopPending = false;
+    if (token === inferenceToken && poseModel && videoReady) {
+      window.requestAnimationFrame(() => classifyPose(token));
+    }
+  }
 }
 
 function _scheduleTrailing(label, elapsedSinceLast) {
@@ -433,3 +764,4 @@ window.PREDICT_UI = (function(){
 
   return { updateFromMl5, highlightSelected, rebuild };
 })();
+

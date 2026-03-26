@@ -9,7 +9,9 @@
   <link rel="icon" type="image/png" sizes="96x96" href="../static/favicon/favicon-96x96.png">
   <link rel="icon" type="image/png" sizes="16x16" href="../static/favicon/favicon-16x16.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
-  <script src="https://unpkg.com/ml5@0.6.1/dist/ml5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.3/dist/teachablemachine-image.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8.3/dist/teachablemachine-pose.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/makeabilitylab/p5js/_libraries/serial.js"></script>
   <link rel="stylesheet" href="../common/header.css">
   <link rel="stylesheet" href="../common/navigation.css">
@@ -42,7 +44,7 @@
         <!-- 기존 헤더 타이틀/설명 -->
         <div class="header-title-desc">
           <h1 id="headerTitle">마이크로비트와 티처블머신 연동하기</h1>
-          <p>티처블머신으로 웹캠을 통해 마이크로컨트롤러 제어</p>
+          <p id="headerSubtitle">티처블머신으로 웹캠을 통해 마이크로컨트롤러 제어</p>
           <p class="mobile-hint" style="display:none; color:#4a5568; margin-top:6px;">우측 상단의 햄버거 버튼을 눌러 설정하세요.</p>
         </div>
         <div class="header-settings-bar">
@@ -62,8 +64,14 @@
           <div class="header-settings-col header-settings-center">
             <div class="settings-title">티처블머신 URL</div>
             <form id="modelUrlForm" onsubmit="event.preventDefault(); document.getElementById('loadModelBtn').click();">
-              <input type="text" id="modelUrlInput" class="form-input"
-                placeholder="https://teachablemachine.withgoogle.com/models/xxxxxx/">
+              <div class="model-url-top-row">
+                <select id="modelTypeSelect" class="form-input model-type-select" aria-label="인식 종류 선택">
+                  <option value="image" selected>이미지 인식</option>
+                  <option value="pose">포즈 인식</option>
+                </select>
+                <input type="text" id="modelUrlInput" class="form-input"
+                  placeholder="https://teachablemachine.withgoogle.com/models/xxxxxx/">
+              </div>
               <button id="loadModelBtn" class="btn">모델 로드</button>
             </form>
           </div>
@@ -168,23 +176,44 @@
   <script>
     function showNotification(message, type = 'info') {
       try {
+        if (window.__tmNotificationTimer) {
+          clearTimeout(window.__tmNotificationTimer);
+          window.__tmNotificationTimer = null;
+        }
+        if (window.__tmNotificationFadeTimer) {
+          clearTimeout(window.__tmNotificationFadeTimer);
+          window.__tmNotificationFadeTimer = null;
+        }
+        if (window.__tmNotificationEl) {
+          try { window.__tmNotificationEl.remove(); } catch (e) { }
+          window.__tmNotificationEl = null;
+        }
+
         const note = document.createElement('div');
         note.textContent = message;
         note.style.position = 'fixed';
         note.style.right = '16px';
         note.style.bottom = '16px';
         note.style.zIndex = '5000';
-        note.style.padding = '10px 14px';
-        note.style.borderRadius = '10px';
+        note.style.padding = '12px 16px';
+        note.style.borderRadius = '14px';
         note.style.color = '#fff';
         note.style.boxShadow = '0 6px 16px rgba(0,0,0,0.15)';
+        note.style.maxWidth = '360px';
+        note.style.width = 'calc(100vw - 32px)';
+        note.style.lineHeight = '1.5';
         note.style.background = type === 'error' ? '#e55353' : '#4a5568';
         document.body.appendChild(note);
-        setTimeout(() => {
+
+        window.__tmNotificationEl = note;
+        window.__tmNotificationTimer = setTimeout(() => {
           note.style.opacity = '0';
           note.style.transition = 'opacity 0.3s';
-          setTimeout(() => note.remove(), 300);
-        }, 2000);
+          window.__tmNotificationFadeTimer = setTimeout(() => {
+            if (window.__tmNotificationEl === note) window.__tmNotificationEl = null;
+            note.remove();
+          }, 300);
+        }, 2200);
       } catch (e) {
         console[type === 'error' ? 'error' : 'log'](message);
       }
@@ -196,6 +225,8 @@
     const deviceToggle = document.getElementById('deviceToggle');  // (레거시: 있을 수도/없을 수도)
     const editorButton = document.getElementById('editorButton');
     const currentDeviceSpan = document.getElementById('currentDevice');
+    const headerSubtitle = document.getElementById('headerSubtitle');
+    const modelTypeSelect = document.getElementById('modelTypeSelect');
     const modelUrlInput = document.getElementById('modelUrlInput');
     const loadModelBtn = document.getElementById('loadModelBtn');
     const deviceSelect = document.getElementById('deviceSelect'); // 'microbit'|'esp32'|'orange'
@@ -209,6 +240,37 @@
     const $ = (sel) => document.querySelector(sel);
 
     const UI_DEVICE_LABEL = { microbit: '마이크로비트', esp32: 'ESP32', orange: '오렌지보드' };
+    const RECOGNITION_MODE_META = {
+      image: {
+        label: '이미지 인식',
+        pageTitle: '티처블머신 이미지 인식 - 마이크로비트/ESP32 연동',
+        headerTitle: (deviceName) => `${deviceName}와 티처블머신 이미지 인식 연동하기`,
+        subtitle: '티처블머신 이미지 모델로 웹캠을 통해 마이크로컨트롤러 제어',
+        placeholder: 'https://teachablemachine.withgoogle.com/models/xxxxxx/',
+        instructionsIntro: '이미지 인식 모델 URL을 입력하고 카메라에 학습한 대상을 보여주면 최종 라벨이 표시됩니다.'
+      },
+      pose: {
+        label: '포즈 인식',
+        pageTitle: '티처블머신 포즈 인식 - 마이크로비트/ESP32 연동',
+        headerTitle: (deviceName) => `${deviceName}와 티처블머신 포즈 인식 연동하기`,
+        subtitle: '티처블머신 포즈 모델로 자세를 인식해 마이크로컨트롤러 제어',
+        placeholder: 'https://teachablemachine.withgoogle.com/models/xxxxxx/',
+        instructionsIntro: '포즈 인식 모델 URL을 입력하고 카메라 앞에서 자세를 취하면 스켈레톤과 최종 라벨이 함께 표시됩니다.'
+      }
+    };
+
+    function getRecognitionMode() {
+      return window.currentRecognitionMode === 'pose' ? 'pose' : 'image';
+    }
+
+    function getRecognitionModeMeta(mode = getRecognitionMode()) {
+      return RECOGNITION_MODE_META[mode] || RECOGNITION_MODE_META.image;
+    }
+
+    function formatModeStatusLabel() {
+      const transport = window.isBluetoothMode ? '블루투스' : '시리얼';
+      return `(${getRecognitionModeMeta().label} · ${transport})`;
+    }
 
     // AppState uses the same device id as the UI.
     const toStateDevice = (uiValue) => uiValue;
@@ -243,7 +305,9 @@
 
     function updateHeaderTitleByDevice(uiDevice /* 'microbit'|'esp32'|'orange' */) {
       const name = UI_DEVICE_LABEL[uiDevice] || '마이크로비트';
-      if (headerTitle) headerTitle.textContent = `${name}와 티처블머신 연동하기`;
+      const recognitionMeta = getRecognitionModeMeta();
+      if (headerTitle) headerTitle.textContent = recognitionMeta.headerTitle(name);
+      if (headerSubtitle) headerSubtitle.textContent = recognitionMeta.subtitle;
     }
 
     function isIPadOSDesktopClass() {
@@ -255,6 +319,30 @@
       const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet|Silk|Kindle/i.test(ua);
       return isMobileUA || isIPadOSDesktopClass();
     }
+
+    window.currentRecognitionMode = (modelTypeSelect?.value === 'pose') ? 'pose' : 'image';
+
+    window.setRecognitionMode = function (mode) {
+      const normalized = mode === 'pose' ? 'pose' : 'image';
+      window.currentRecognitionMode = normalized;
+      if (modelTypeSelect && modelTypeSelect.value !== normalized) modelTypeSelect.value = normalized;
+
+      const recognitionMeta = getRecognitionModeMeta(normalized);
+      document.title = recognitionMeta.pageTitle;
+      if (modelUrlInput) modelUrlInput.placeholder = recognitionMeta.placeholder;
+
+      const uiDevice = getCurrentUiDevice();
+      updateHeaderTitleByDevice(uiDevice);
+
+      try {
+        updateExampleModeLabel?.();
+        updateExampleSectionTitle?.();
+        updateExampleContentForMode?.();
+        renderInstructions?.(uiDevice);
+      } catch (e) { }
+
+      try { window.handleRecognitionModeChange?.(normalized); } catch (e) { }
+    };
 
     /* ---------- 튜토리얼 상태 ---------- */
     const TUTORIAL_STORAGE_KEY = 'tm_tutorial_status_v1';
@@ -686,7 +774,7 @@ void loop() {
     function updateExampleModeLabel() {
       const labelEl = document.getElementById('exampleModeLabel');
       if (!labelEl) return;
-      labelEl.textContent = window.isBluetoothMode ? '(블루투스)' : '(시리얼)';
+      labelEl.textContent = formatModeStatusLabel();
     }
 
     // 탭을 다시 만들고 이벤트 바인딩
@@ -938,11 +1026,13 @@ void loop() {
       }
 
       const html = `<ol>${instructions.map(s => `<li>${s}</li>`).join('')}</ol>`;
+      const recognitionMeta = getRecognitionModeMeta();
+      const introHtml = `<div class="tm-mode-callout">${recognitionMeta.instructionsIntro}</div>`;
       const cont = document.getElementById('instructionsContent');
-      if (cont) cont.innerHTML = html;
+      if (cont) cont.innerHTML = introHtml + html;
 
       const label = document.getElementById('instructionsModeLabel');
-      if (label) label.textContent = isBLE ? '(블루투스)' : '(시리얼)';
+      if (label) label.textContent = formatModeStatusLabel();
 
       // 🔸 더 이상 숨기지 않음: 모든 기기에서 예시 영역 표시
       const codeExamples = document.getElementById('codeExamples');
@@ -962,13 +1052,19 @@ void loop() {
       updateConnectionTypeLabel();
       setConnectButtonText(window.isBluetoothMode ? '블루투스 연결' : '시리얼 연결');
     } catch (e) { }
+    window.setRecognitionMode(window.currentRecognitionMode);
 
     /* ---------- 모델 로드 ---------- */
+    if (modelTypeSelect) {
+      modelTypeSelect.addEventListener('change', function () {
+        window.setRecognitionMode(modelTypeSelect.value);
+      });
+    }
     if (loadModelBtn) {
       loadModelBtn.addEventListener('click', function () {
         const url = (modelUrlInput?.value || '').trim();
         if (url && window.setModelUrl) window.setModelUrl(url);
-        else alert('올바른 모델 URL을 입력하세요.');
+        else showNotification('URL이 유효하지 않습니다. 티처블머신 모델 주소를 확인하세요.', 'error');
       });
     }
 
