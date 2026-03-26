@@ -158,24 +158,33 @@ body {
   min-height: 360px;
   display: grid;
   place-items: center;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .robot-stage {
+  --robot-scale: 1;
   width: min(100%, 760px);
   height: 320px;
   display: grid;
   place-items: center;
-}
-
-.robot-stage.right .robot {
-  transform: scaleX(-1);
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .robot {
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 420px;
   height: 260px;
   transform-origin: center center;
+  transform: translate(-50%, -50%) scale(var(--robot-scale));
+}
+
+.robot-stage.right .robot {
+  transform: translate(-50%, -50%) scale(var(--robot-scale)) scaleX(-1);
 }
 
 .body {
@@ -263,6 +272,7 @@ body {
   display: grid;
   grid-template-columns: repeat(2, minmax(260px, 1fr));
   gap: 14px;
+  min-width: 0;
 }
 
 .motor-group {
@@ -273,6 +283,8 @@ body {
   padding: 12px 12px 14px;
   display: grid;
   gap: 10px;
+  min-width: 0;
+  min-inline-size: 0;
 }
 
 .motor-group legend {
@@ -285,11 +297,16 @@ body {
   grid-template-columns: 80px 1fr 70px;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .control-row span {
   font-size: 14px;
   font-weight: 600;
+}
+
+.control-row > * {
+  min-width: 0;
 }
 
 input[type='range'] {
@@ -335,12 +352,20 @@ input[type='number'] {
     grid-template-columns: 1fr;
   }
 
-  .robot {
-    transform: scale(0.92);
+  .robot-stage {
+    --robot-scale: 0.82;
+  }
+}
+
+@media (max-width: 600px) {
+  .sim-view {
+    padding: 12px;
+    min-height: 280px;
   }
 
-  .robot-stage.right .robot {
-    transform: scale(0.92) scaleX(-1);
+  .robot-stage {
+    --robot-scale: 0.64;
+    height: 240px;
   }
 }
 
@@ -355,5 +380,24 @@ input[type='number'] {
     padding: 4px 10px;
     min-width: 60px;
     min-height: 28px;
+  }
+
+  .sim-view {
+    padding: 10px;
+    min-height: 220px;
+  }
+
+  .robot-stage {
+    --robot-scale: 0.5;
+    height: 190px;
+  }
+
+  .motor-group {
+    padding: 10px;
+  }
+
+  .control-row {
+    grid-template-columns: 56px minmax(0, 8fr) minmax(0, 2fr);
+    gap: 8px;
   }
 }

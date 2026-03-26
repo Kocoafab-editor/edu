@@ -101,9 +101,6 @@ body {
 }
 
 @media (max-width: 480px) {
-    html {
-        font-size: 80%;
-    }
     .main-container {
         padding-top: 30px;
     }
@@ -118,10 +115,5 @@ body {
         min-height: 160px;
         padding: 20px 32px;
     }
-    .main-card-item-title {
-        font-size: 1em;
-    }
-    .main-card-item-desc {
-        font-size: 0.8em;
-    }
+
 }
