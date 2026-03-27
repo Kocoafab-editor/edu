@@ -632,6 +632,29 @@
     return text;
   };
 
+  const sanitizeInputForEditing = (value) => {
+    let text = (value ?? '').toString();
+    text = text.replace(/[\u0000-\u001F\u007F]/g, '');
+    text = text.replace(/[<>]/g, '');
+    if (text.length > MAX_FIELD_LENGTH) text = text.slice(0, MAX_FIELD_LENGTH);
+    return text;
+  };
+
+  const normalizeDraftField = (inputEl, row, field) => {
+    const liveValue = sanitizeInputForEditing(inputEl.value);
+    if (liveValue !== inputEl.value) inputEl.value = liveValue;
+
+    const normalizedValue = sanitizeInput(liveValue);
+    if (!normalizedValue) {
+      inputEl.value = row[field] || '';
+      return;
+    }
+
+    row[field] = normalizedValue;
+    if (normalizedValue !== inputEl.value) inputEl.value = normalizedValue;
+    persistKvData();
+  };
+
   const normalizeKvEntry = (entry) => {
     if (!entry || typeof entry !== 'object') return null;
     const key = sanitizeInput(entry.key);
@@ -678,7 +701,7 @@
     kvForm.addEventListener('input', (e) => {
       const target = e.target;
       if (!(target instanceof HTMLInputElement)) return;
-      const cleaned = sanitizeInput(target.value);
+      const cleaned = sanitizeInputForEditing(target.value);
       if (cleaned !== target.value) target.value = cleaned;
     });
   }
@@ -704,15 +727,10 @@
         inp.value = row.key;
         inp.className = 'kv-inline-input';
         inp.addEventListener('input', (e) => {
-          const sanitized = sanitizeInput(e.target.value);
-          if (!sanitized) {
-            e.target.value = kvData[idx].key || '';
-            return;
-          }
-          kvData[idx].key = sanitized;
-          e.target.value = sanitized;
-          persistKvData();
+          const sanitized = sanitizeInputForEditing(e.target.value);
+          if (sanitized !== e.target.value) e.target.value = sanitized;
         });
+        inp.addEventListener('blur', () => normalizeDraftField(inp, row, 'key'));
         tdKey.appendChild(inp);
       } else {
         tdKey.textContent = row.key;
@@ -726,15 +744,10 @@
         inp.value = row.value;
         inp.className = 'kv-inline-input';
         inp.addEventListener('input', (e) => {
-          const sanitized = sanitizeInput(e.target.value);
-          if (!sanitized) {
-            e.target.value = kvData[idx].value || '';
-            return;
-          }
-          kvData[idx].value = sanitized;
-          e.target.value = sanitized;
-          persistKvData();
+          const sanitized = sanitizeInputForEditing(e.target.value);
+          if (sanitized !== e.target.value) e.target.value = sanitized;
         });
+        inp.addEventListener('blur', () => normalizeDraftField(inp, row, 'value'));
         tdVal.appendChild(inp);
       } else {
         tdVal.textContent = row.value;
