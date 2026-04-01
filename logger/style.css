@@ -309,6 +309,14 @@ body {
   position: relative;
 }
 
+.graphs-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 4px;
+  margin: -4px;
+}
+
 .graphs-header {
   display: flex;
   align-items: center;
@@ -323,11 +331,7 @@ body {
 
 .group-panel-overlay {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(-1 * var(--section-pad-x));
-  right: 0;
-  width: calc(100% + var(--section-pad-x));
+  inset: 0;
   background: rgba(15, 23, 42, 0.45);
   opacity: 0;
   pointer-events: none;
@@ -339,7 +343,7 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: calc(-1 * var(--section-pad-x));
+  left: 0;
   width: 320px;
   max-width: 80%;
   background: #f8fafc;
@@ -376,7 +380,7 @@ body {
   pointer-events: auto;
 }
 
-.main-section.group-panel-open .graphs-shell {
+.main-section.group-panel-open .graphs-list {
   filter: grayscale(0.1);
 }
 

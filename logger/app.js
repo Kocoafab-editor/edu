@@ -309,8 +309,14 @@
     if (!Number.isFinite(sec)) return '';
     if (sec === 0) return '0s';
     const fixed = sec % 1 === 0 ? sec.toFixed(0) : sec.toFixed(2);
-    const trimmed = fixed.replace(/\.?0+$/, '');
+    const trimmed = trimDecimalZeros(fixed);
     return `${trimmed || '0'}s`;
+  }
+
+  function trimDecimalZeros(value) {
+    const text = String(value ?? '');
+    if (!text.includes('.')) return text;
+    return text.replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1');
   }
 
   function setConnectBtnText(text) {
@@ -1764,7 +1770,7 @@
   function formatValue(value) {
     if (!Number.isFinite(value)) return '-';
     const fixed = Math.abs(value) >= 100 ? value.toFixed(0) : value.toFixed(2);
-    return fixed.replace(/\.?0+$/, '');
+    return trimDecimalZeros(fixed);
   }
 
   function renderGraphTooltip(tooltip, info, startTime) {

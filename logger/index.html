@@ -127,28 +127,30 @@
             </div>
             <button id="groupPanelToggleBtn" class="btn btn-secondary btn-small" type="button">그룹 패널</button>
           </div>
-          <div id="graphList" class="graphs-list"></div>
-        </section>
-        <div id="groupPanelOverlay" class="group-panel-overlay"></div>
-        <aside id="groupPanelDrawer" class="group-panel-drawer" aria-hidden="true">
-          <div class="panel-card group-panel-card">
-            <div class="panel-header group-panel-header">
-              <div>
-                <p class="eyebrow">Groups</p>
-                <h3>센서 그룹</h3>
+          <div class="graphs-stage">
+            <div id="graphList" class="graphs-list"></div>
+            <div id="groupPanelOverlay" class="group-panel-overlay"></div>
+            <aside id="groupPanelDrawer" class="group-panel-drawer" aria-hidden="true">
+              <div class="panel-card group-panel-card">
+                <div class="panel-header group-panel-header">
+                  <div>
+                    <p class="eyebrow">Groups</p>
+                    <h3>센서 그룹</h3>
+                  </div>
+                  <div class="group-panel-controls">
+                    <button id="editGroupsBtn" class="btn btn-small" type="button">편집</button>
+                    <button id="closeGroupPanelBtn" class="btn btn-secondary btn-small" type="button">닫기</button>
+                  </div>
+                </div>
+                <div id="groupList" class="group-list"></div>
+                <div class="group-actions">
+                  <button id="addGroupBtn" class="btn btn-secondary btn-small" type="button">그룹 추가</button>
+                </div>
+                <p class="helper small">MCU에서 보내는 라벨과 동일하게 입력하면 해당 그룹으로 값이 누적됩니다.</p>
               </div>
-              <div class="group-panel-controls">
-                <button id="editGroupsBtn" class="btn btn-small" type="button">편집</button>
-                <button id="closeGroupPanelBtn" class="btn btn-secondary btn-small" type="button">닫기</button>
-              </div>
-            </div>
-            <div id="groupList" class="group-list"></div>
-            <div class="group-actions">
-              <button id="addGroupBtn" class="btn btn-secondary btn-small" type="button">그룹 추가</button>
-            </div>
-            <p class="helper small">MCU에서 보내는 라벨과 동일하게 입력하면 해당 그룹으로 값이 누적됩니다.</p>
+            </aside>
           </div>
-        </aside>
+        </section>
       </div>
     </div>
   </div>
