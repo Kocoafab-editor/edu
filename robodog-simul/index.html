@@ -67,34 +67,99 @@
           </div>
         </section>
 
-        <section class="bottom-panel">
-          <fieldset class="motor-group">
-            <legend>앞 다리</legend>
-            <label class="control-row">
-              <span>어깨</span>
-              <input type="range" min="-90" max="90" step="1" value="0" data-key="frontShoulder" />
-              <input type="number" min="-90" max="90" step="1" value="0" data-key="frontShoulder" />
-            </label>
-            <label class="control-row">
-              <span>무릎</span>
-              <input type="range" min="-90" max="70" step="1" value="0" data-key="frontElbow" />
-              <input type="number" min="-90" max="70" step="1" value="0" data-key="frontElbow" />
-            </label>
-          </fieldset>
+        <section class="mode-panel">
+          <div class="mode-toggle" role="group" aria-label="Control mode">
+            <button type="button" class="toggle-btn active" data-control-mode="angle">각도 제어</button>
+            <button type="button" class="toggle-btn" data-control-mode="length">길이 제어</button>
+          </div>
+        </section>
 
-          <fieldset class="motor-group">
-            <legend>뒤 다리</legend>
-            <label class="control-row">
-              <span>어깨</span>
-              <input type="range" min="-90" max="90" step="1" value="0" data-key="rearShoulder" />
-              <input type="number" min="-90" max="90" step="1" value="0" data-key="rearShoulder" />
-            </label>
-            <label class="control-row">
-              <span>무릎</span>
-              <input type="range" min="-90" max="70" step="1" value="0" data-key="rearElbow" />
-              <input type="number" min="-90" max="70" step="1" value="0" data-key="rearElbow" />
-            </label>
-          </fieldset>
+        <section class="bottom-panel">
+          <div class="control-panel-group is-active" data-panel="angle">
+            <fieldset class="motor-group">
+              <legend>앞 다리</legend>
+              <label class="control-row">
+                <span>어깨</span>
+                <input type="range" min="-90" max="90" step="1" value="0" data-key="frontShoulder" />
+                <input type="number" min="-90" max="90" step="1" value="0" data-key="frontShoulder" />
+              </label>
+              <label class="control-row">
+                <span>무릎</span>
+                <input type="range" min="-90" max="70" step="1" value="0" data-key="frontElbow" />
+                <input type="number" min="-90" max="70" step="1" value="0" data-key="frontElbow" />
+              </label>
+            </fieldset>
+
+            <fieldset class="motor-group">
+              <legend>뒤 다리</legend>
+              <label class="control-row">
+                <span>어깨</span>
+                <input type="range" min="-90" max="90" step="1" value="0" data-key="rearShoulder" />
+                <input type="number" min="-90" max="90" step="1" value="0" data-key="rearShoulder" />
+              </label>
+              <label class="control-row">
+                <span>무릎</span>
+                <input type="range" min="-90" max="70" step="1" value="0" data-key="rearElbow" />
+                <input type="number" min="-90" max="70" step="1" value="0" data-key="rearElbow" />
+              </label>
+            </fieldset>
+          </div>
+
+          <div class="control-panel-group" data-panel="length">
+            <fieldset class="motor-group">
+              <legend>앞 다리</legend>
+              <label class="control-row">
+                <span>다리높이</span>
+                <input type="range" min="20" max="90" step="1" value="90" data-key="frontHeight" />
+                <input type="number" min="20" max="90" step="1" value="90" data-key="frontHeight" />
+              </label>
+              <label class="control-row">
+                <span>발끝앞뒤</span>
+                <input type="range" min="-90" max="90" step="1" value="0" data-key="frontReach" />
+                <input type="number" min="-90" max="90" step="1" value="0" data-key="frontReach" />
+              </label>
+            </fieldset>
+
+            <fieldset class="motor-group">
+              <legend>뒤 다리</legend>
+              <label class="control-row">
+                <span>다리높이</span>
+                <input type="range" min="20" max="90" step="1" value="90" data-key="rearHeight" />
+                <input type="number" min="20" max="90" step="1" value="90" data-key="rearHeight" />
+              </label>
+              <label class="control-row">
+                <span>발끝앞뒤</span>
+                <input type="range" min="-90" max="90" step="1" value="0" data-key="rearReach" />
+                <input type="number" min="-90" max="90" step="1" value="0" data-key="rearReach" />
+              </label>
+            </fieldset>
+          </div>
+        </section>
+
+        <section class="mode-panel">
+          <div class="mode-toggle" role="group" aria-label="Code view mode">
+            <button type="button" class="toggle-btn active" data-code-mode="block">블록코드</button>
+            <button type="button" class="toggle-btn" data-code-mode="python">파이썬코드</button>
+          </div>
+        </section>
+
+        <section class="code-panel-section">
+          <div class="code-panel-group is-active" data-code-panel="block">
+            <fieldset class="panel-card panel-card--code">
+              <legend>블록코드</legend>
+              <div id="blockCodeOutput" class="block-code-output" aria-live="polite"></div>
+            </fieldset>
+          </div>
+
+          <div class="code-panel-group" data-code-panel="python">
+            <fieldset class="panel-card panel-card--code">
+              <legend>파이썬코드</legend>
+              <div class="code-block">
+                <button id="copyCodeBtn" type="button" class="copy-btn" aria-label="Python 코드 복사" title="Python 코드 복사">⧉</button>
+                <pre id="pythonCodeOutput" class="code-output"></pre>
+              </div>
+            </fieldset>
+          </div>
         </section>
     </div>
   </div>
