@@ -139,6 +139,73 @@
     return true;
   }
 
+  function matricesEqual(leftMatrix, rightMatrix) {
+    for (let rowIndex = 0; rowIndex < MATRIX_SIZE; rowIndex += 1) {
+      for (let columnIndex = 0; columnIndex < MATRIX_SIZE; columnIndex += 1) {
+        const leftValue = leftMatrix[rowIndex] && leftMatrix[rowIndex][columnIndex] ? 1 : 0;
+        const rightValue = rightMatrix[rowIndex] && rightMatrix[rowIndex][columnIndex] ? 1 : 0;
+        if (leftValue !== rightValue) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function hasPendingEditChanges(state) {
+    if (!state || !state.editSnapshot) {
+      return false;
+    }
+    return normalizeName(state.currentName) !== normalizeName(state.editSnapshot.currentName)
+      || !matricesEqual(state.left, state.editSnapshot.left)
+      || !matricesEqual(state.right, state.editSnapshot.right);
+  }
+
+  function shouldPromptBeforeNavigation(state) {
+    return Boolean(state && state.mode === 'edit' && hasPendingEditChanges(state));
+  }
+
+  function shouldWarnBeforeUnload(state) {
+    return shouldPromptBeforeNavigation(state) && !state.suppressBeforeUnload;
+  }
+
+  function getCancelEditPromptMode(state) {
+    if (!state || state.mode !== 'edit') {
+      return 'none';
+    }
+    return hasPendingEditChanges(state) ? 'dirty' : 'clean';
+  }
+
+  function getInitialExample(examples) {
+    if (!Array.isArray(examples) || examples.length === 0) {
+      return null;
+    }
+    return examples.find(function (example) {
+      return example && example.id === 'builtin-happy';
+    }) || examples[0] || null;
+  }
+
+  function formatUpdatedAt(example) {
+    if (!example || !Number.isFinite(example.updatedAt) || example.updatedAt < 1000) {
+      return example && example.builtin && !example.stored ? '기본 예시' : '저장됨';
+    }
+    return new Date(example.updatedAt).toLocaleDateString('ko-KR', {
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+
+  function formatExampleMetaText(example) {
+    const suffix = formatUpdatedAt(example);
+    if (example && example.overridden) {
+      return '수정됨 · ' + suffix;
+    }
+    if (example && example.builtin && !example.stored && suffix === '기본 예시') {
+      return '기본 예시';
+    }
+    return '저장됨 · ' + suffix;
+  }
+
   function createBuiltInExamples() {
     return [
       {
@@ -179,6 +246,7 @@
     const doc = root.document;
     const elements = {
       sideToggle: doc.getElementById('sideToggle'),
+      backBtn: doc.querySelector('.back-btn'),
       enterEditBtn: doc.getElementById('enterEditBtn'),
       editModeActions: doc.getElementById('editModeActions'),
       editorPanel: doc.getElementById('editorPanel'),
@@ -198,6 +266,7 @@
       confirmTitle: doc.getElementById('confirmTitle'),
       confirmMessage: doc.getElementById('confirmMessage'),
       cancelConfirmBtn: doc.getElementById('cancelConfirmBtn'),
+      alternateConfirmBtn: doc.getElementById('alternateConfirmBtn'),
       acceptConfirmBtn: doc.getElementById('acceptConfirmBtn'),
     };
 
@@ -217,8 +286,12 @@
       examples: [],
       matrixButtons: { left: [], right: [] },
       confirmAction: null,
+      alternateConfirmAction: null,
       editSnapshot: null,
       dragSession: null,
+      suppressBeforeUnload: false,
+      pendingBrowserBackExit: false,
+      historyGuardInstalled: false,
     };
 
     function showToast(message, tone) {
@@ -237,15 +310,118 @@
       }, 2200);
     }
 
+    function handleBeforeUnload(event) {
+      if (!shouldWarnBeforeUnload(state)) {
+        return undefined;
+      }
+      event.preventDefault();
+      event.returnValue = '';
+      return '';
+    }
+
+    function suppressBeforeUnloadBriefly() {
+      state.suppressBeforeUnload = true;
+      root.setTimeout(function () {
+        state.suppressBeforeUnload = false;
+      }, 600);
+    }
+
+    function leaveViaLocation(url) {
+      suppressBeforeUnloadBriefly();
+      root.location.href = url;
+    }
+
+    function leaveViaBrowserBack() {
+      if (!root.history || typeof root.history.back !== 'function') {
+        return;
+      }
+      suppressBeforeUnloadBriefly();
+      state.pendingBrowserBackExit = true;
+      root.history.back();
+    }
+
+    function promptBeforeLeavingPage(onProceed) {
+      if (!shouldPromptBeforeNavigation(state)) {
+        onProceed();
+        return;
+      }
+      openConfirmModal({
+        title: '페이지를 떠날까요?',
+        message: '현재 변경 내용이 저장되지 않았습니다. 저장하거나 버리고 이전 화면으로 이동할 수 있습니다.',
+        confirmLabel: '저장',
+        confirmTone: 'default',
+        alternateLabel: '버리기',
+        alternateTone: 'warning',
+        cancelLabel: '취소',
+        onConfirm: function () {
+          return handleSave(false, onProceed);
+        },
+        onAlternate: function () {
+          onProceed();
+        },
+      });
+    }
+
+    function handlePopState() {
+      if (!state.historyGuardInstalled || !root.history || typeof root.history.back !== 'function') {
+        return;
+      }
+
+      if (state.pendingBrowserBackExit) {
+        state.pendingBrowserBackExit = false;
+        suppressBeforeUnloadBriefly();
+        root.history.back();
+        return;
+      }
+
+      if (!shouldPromptBeforeNavigation(state)) {
+        suppressBeforeUnloadBriefly();
+        root.history.back();
+        return;
+      }
+
+      if (typeof root.history.pushState === 'function') {
+        root.history.pushState({ robodogFaceGuard: true }, '', root.location.href);
+      }
+
+      openConfirmModal({
+        title: '페이지를 떠날까요?',
+        message: '현재 변경 내용이 저장되지 않았습니다. 저장하거나 버리고 이전 화면으로 이동할 수 있습니다.',
+        confirmLabel: '저장',
+        confirmTone: 'default',
+        alternateLabel: '버리기',
+        alternateTone: 'warning',
+        cancelLabel: '취소',
+        onConfirm: function () {
+          return handleSave(false, leaveViaBrowserBack);
+        },
+        onAlternate: function () {
+          leaveViaBrowserBack();
+        },
+      });
+    }
+
     function openConfirmModal(options) {
       if (!elements.confirmModal) {
         return;
       }
       state.confirmAction = typeof options.onConfirm === 'function' ? options.onConfirm : null;
+      state.alternateConfirmAction = typeof options.onAlternate === 'function' ? options.onAlternate : null;
       elements.confirmTitle.textContent = options.title || '확인';
       elements.confirmMessage.textContent = options.message || '';
+      elements.cancelConfirmBtn.textContent = options.cancelLabel || '취소';
       elements.acceptConfirmBtn.textContent = options.confirmLabel || '확인';
       elements.acceptConfirmBtn.dataset.tone = options.confirmTone || 'default';
+      if (elements.alternateConfirmBtn) {
+        if (state.alternateConfirmAction) {
+          elements.alternateConfirmBtn.textContent = options.alternateLabel || '다른 작업';
+          elements.alternateConfirmBtn.dataset.tone = options.alternateTone || 'default';
+          elements.alternateConfirmBtn.classList.remove('hidden');
+        } else {
+          elements.alternateConfirmBtn.classList.add('hidden');
+          delete elements.alternateConfirmBtn.dataset.tone;
+        }
+      }
       elements.confirmModal.classList.remove('hidden');
       elements.confirmModal.setAttribute('aria-hidden', 'false');
     }
@@ -255,13 +431,26 @@
         return;
       }
       state.confirmAction = null;
+      state.alternateConfirmAction = null;
       elements.confirmModal.classList.add('hidden');
       elements.confirmModal.setAttribute('aria-hidden', 'true');
       delete elements.acceptConfirmBtn.dataset.tone;
+      if (elements.alternateConfirmBtn) {
+        elements.alternateConfirmBtn.classList.add('hidden');
+        delete elements.alternateConfirmBtn.dataset.tone;
+      }
     }
 
     async function handleConfirmAccept() {
       const action = state.confirmAction;
+      closeConfirmModal();
+      if (typeof action === 'function') {
+        await action();
+      }
+    }
+
+    async function handleAlternateConfirm() {
+      const action = state.alternateConfirmAction;
       closeConfirmModal();
       if (typeof action === 'function') {
         await action();
@@ -356,13 +545,52 @@
       return matrixEl;
     }
 
-    function formatUpdatedAt(example) {
-      if (!example || !Number.isFinite(example.updatedAt) || example.updatedAt < 1000) {
-        return example && example.builtin && !example.stored ? '기본 예시' : '저장됨';
+    function setDraftState() {
+      state.selectedKey = DRAFT_KEY;
+      state.selectedExample = null;
+      state.currentName = '';
+      state.left = createEmptyMatrix();
+      state.right = createEmptyMatrix();
+    }
+
+    function openDraftEditor() {
+      setDraftState();
+      state.dragSession = null;
+      state.mode = 'edit';
+      state.editSnapshot = createEditSnapshot(state);
+      render();
+      if (elements.presetNameInput) {
+        elements.presetNameInput.focus();
       }
-      return new Date(example.updatedAt).toLocaleDateString('ko-KR', {
-        month: 'short',
-        day: 'numeric',
+    }
+
+    function selectExampleInReadMode(example) {
+      state.mode = 'read';
+      state.editSnapshot = null;
+      state.dragSession = null;
+      loadExample(example);
+    }
+
+    function runWithPendingEditGuard(onProceed) {
+      if (state.mode !== 'edit' || !hasPendingEditChanges(state)) {
+        onProceed();
+        return;
+      }
+
+      openConfirmModal({
+        title: '편집 중인 내용을 어떻게 할까요?',
+        message: '현재 변경 내용이 저장되지 않았습니다. 저장하거나 버리고 다른 예시로 이동할 수 있습니다.',
+        confirmLabel: '저장',
+        confirmTone: 'default',
+        alternateLabel: '버리기',
+        alternateTone: 'warning',
+        cancelLabel: '취소',
+        onConfirm: function () {
+          return handleSave(false, onProceed);
+        },
+        onAlternate: function () {
+          onProceed();
+        },
       });
     }
 
@@ -371,17 +599,11 @@
       const createCard = doc.createElement('button');
       createCard.type = 'button';
       createCard.className = 'preset-card preset-card--create' + (state.selectedKey === DRAFT_KEY ? ' is-active' : '');
-      createCard.innerHTML = '<span class="preset-card__plus">+</span><strong class="preset-card__title">새로 만들기</strong><span class="preset-card__meta">비어 있는 8x8 캔버스</span>';
+      createCard.innerHTML = '<span class="preset-card__plus">+</span><strong class="preset-card__title">새로 만들기</strong><span class="preset-card__meta">빈 캔버스를 열고 편집합니다.</span>';
       createCard.addEventListener('click', function () {
-        state.selectedKey = DRAFT_KEY;
-        state.selectedExample = null;
-        state.currentName = '';
-        state.left = createEmptyMatrix();
-        state.right = createEmptyMatrix();
-        if (state.mode === 'edit') {
-          state.editSnapshot = createEditSnapshot(state);
-        }
-        render();
+        runWithPendingEditGuard(function () {
+          openDraftEditor();
+        });
       });
       fragment.appendChild(createCard);
 
@@ -405,14 +627,16 @@
 
         const meta = doc.createElement('span');
         meta.className = 'preset-card__meta';
-        meta.textContent = (example.overridden ? '수정됨 · ' : (example.builtin ? '기본 예시 · ' : '저장됨 · ')) + formatUpdatedAt(example);
+        meta.textContent = formatExampleMetaText(example);
 
         body.appendChild(title);
         body.appendChild(meta);
         card.appendChild(preview);
         card.appendChild(body);
         card.addEventListener('click', function () {
-          loadExample(example);
+          runWithPendingEditGuard(function () {
+            selectExampleInReadMode(example);
+          });
         });
         fragment.appendChild(card);
       });
@@ -503,6 +727,7 @@
     }
 
     function enterEditMode() {
+      state.dragSession = null;
       state.editSnapshot = createEditSnapshot(state);
       state.mode = 'edit';
       render();
@@ -512,7 +737,7 @@
       }
     }
 
-    async function handleSave(forceOverwrite) {
+    async function handleSave(forceOverwrite, afterSave) {
       const name = normalizeName(elements.presetNameInput ? elements.presetNameInput.value : state.currentName);
       const existing = state.examples.find(function (example) {
         return normalizeName(example.name) === name;
@@ -533,7 +758,7 @@
           confirmLabel: '덮어쓰기',
           confirmTone: 'warning',
           onConfirm: function () {
-            return handleSave(true);
+            return handleSave(true, afterSave);
           },
         });
         return;
@@ -547,15 +772,58 @@
       state.currentName = name;
       state.mode = 'read';
       state.editSnapshot = null;
+      state.dragSession = null;
       await refreshAndSelectByName(name);
       showToast('예시를 저장했습니다.', 'success');
+      if (typeof afterSave === 'function') {
+        afterSave();
+      }
     }
 
-    function handleCancelEdit() {
+    function discardAndExitEdit() {
       applyEditSnapshot(state, state.editSnapshot);
       state.mode = 'read';
       state.editSnapshot = null;
+      state.dragSession = null;
       render();
+    }
+
+    function handleCancelEdit() {
+      const promptMode = getCancelEditPromptMode(state);
+      if (promptMode === 'none') {
+        discardAndExitEdit();
+        return;
+      }
+
+      if (promptMode === 'dirty') {
+        openConfirmModal({
+          title: '편집을 취소할까요?',
+          message: '저장되지 않은 변경 내용이 있습니다. 저장하거나 버리고 읽기 모드로 돌아갈 수 있습니다.',
+          confirmLabel: '저장',
+          confirmTone: 'default',
+          alternateLabel: '버리기',
+          alternateTone: 'warning',
+          cancelLabel: '계속 편집',
+          onConfirm: function () {
+            return handleSave(false);
+          },
+          onAlternate: function () {
+            discardAndExitEdit();
+          },
+        });
+        return;
+      }
+
+      openConfirmModal({
+        title: '편집을 취소할까요?',
+        message: '변경된 내용은 없지만 읽기 모드로 돌아갑니다.',
+        confirmLabel: '취소하기',
+        confirmTone: 'default',
+        cancelLabel: '계속 편집',
+        onConfirm: function () {
+          discardAndExitEdit();
+        },
+      });
     }
 
     async function handleDeleteCurrent() {
@@ -640,6 +908,29 @@
     buildInteractiveMatrix('left', elements.leftMatrix);
     buildInteractiveMatrix('right', elements.rightMatrix);
 
+    if (root.history && typeof root.history.replaceState === 'function' && typeof root.history.pushState === 'function') {
+      const currentState = root.history.state && typeof root.history.state === 'object'
+        ? root.history.state
+        : {};
+      root.history.replaceState(Object.assign({}, currentState, { robodogFaceBase: true }), '', root.location.href);
+      root.history.pushState({ robodogFaceGuard: true }, '', root.location.href);
+      state.historyGuardInstalled = true;
+    }
+
+    if (root.addEventListener) {
+      root.addEventListener('beforeunload', handleBeforeUnload);
+      root.addEventListener('popstate', handlePopState);
+    }
+
+    if (elements.backBtn) {
+      elements.backBtn.addEventListener('click', function (event) {
+        event.preventDefault();
+        promptBeforeLeavingPage(function () {
+          leaveViaLocation(elements.backBtn.href);
+        });
+      });
+    }
+
     if (elements.enterEditBtn) {
       elements.enterEditBtn.addEventListener('click', function () {
         enterEditMode();
@@ -694,6 +985,12 @@
       });
     }
 
+    if (elements.alternateConfirmBtn) {
+      elements.alternateConfirmBtn.addEventListener('click', function () {
+        handleAlternateConfirm();
+      });
+    }
+
     if (elements.confirmModal) {
       elements.confirmModal.addEventListener('click', function (event) {
         if (event.target === elements.confirmModal) {
@@ -703,6 +1000,11 @@
     }
 
     refreshExamples().then(function () {
+      const initialExample = getInitialExample(state.examples);
+      if (initialExample) {
+        selectExampleInReadMode(initialExample);
+        return;
+      }
       render();
     }).catch(function () {
       showToast('예시 저장소를 준비하지 못했습니다.', 'danger');
@@ -721,6 +1023,12 @@
     applyEditSnapshot: applyEditSnapshot,
     createPaintSession: createPaintSession,
     applyPaintSession: applyPaintSession,
+    hasPendingEditChanges: hasPendingEditChanges,
+    shouldPromptBeforeNavigation: shouldPromptBeforeNavigation,
+    shouldWarnBeforeUnload: shouldWarnBeforeUnload,
+    getCancelEditPromptMode: getCancelEditPromptMode,
+    getInitialExample: getInitialExample,
+    formatExampleMetaText: formatExampleMetaText,
     matrixRowsToBytes: matrixRowsToBytes,
     formatPythonCode: formatPythonCode,
     highlightPythonCode: highlightPythonCode,

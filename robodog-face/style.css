@@ -628,6 +628,11 @@ body {
   background: #c2410c;
 }
 
+#alternateConfirmBtn[data-tone='warning'] {
+  background: #d97706;
+  color: #f8fafc;
+}
+
 #acceptConfirmBtn[data-tone='danger'] {
   background: #b91c1c;
 }
