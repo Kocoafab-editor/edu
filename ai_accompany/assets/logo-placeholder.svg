@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
+  <title id="title">AI Dashboard Placeholder Logo</title>
+  <desc id="desc">Replaceable placeholder logo for the AI dashboard header.</desc>
+  <defs>
+    <linearGradient id="tile" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#265c4b"/>
+      <stop offset="100%" stop-color="#3e8b74"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="160" rx="40" fill="url(#tile)"/>
+  <path d="M43 117 73 43h15l30 74h-18l-6-16H66l-6 16H43Zm29-30h16L80 64 72 87Z" fill="#f4faf7"/>
+  <circle cx="118" cy="50" r="10" fill="#d6efe6"/>
+</svg>

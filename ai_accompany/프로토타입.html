@@ -1,0 +1,278 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.w{padding:1rem 0;font-family:var(--font-sans);color:var(--color-text-primary)}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-pill{background:#4C42C8;border-radius:7px;padding:5px 13px;font-size:13px;font-weight:500;color:#fff}
+.brand-pill em{color:#c4bfff;font-style:normal}
+.brand-sub{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.filters select{font-size:12px;padding:5px 10px;border-radius:6px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary)}
+.kpi-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.25rem}
+.kpi{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px}
+.kpi-lbl{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px}
+.kpi-val{font-size:22px;font-weight:500}
+.kpi-val.p{color:#4C42C8}
+.kpi-val.r{color:#A32D2D}
+.kpi-val.g{color:#27500A}
+.sec-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem}
+.card-hd{font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:12px;letter-spacing:.2px}
+.full{grid-column:1/-1}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.bl{font-size:12px;min-width:84px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.bt{flex:1;height:8px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden}
+.bf{height:100%;border-radius:4px}
+.bv{font-size:11px;color:var(--color-text-secondary);min-width:34px;text-align:right}
+.fn-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.fn-lbl{font-size:11px;color:var(--color-text-secondary);min-width:28px}
+.fn-t{flex:1;height:22px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden}
+.fn-f{height:100%;border-radius:4px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:500;color:#fff;white-space:nowrap}
+.fn-n{font-size:11px;color:var(--color-text-secondary);min-width:30px;text-align:right}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+.tbl th{font-size:11px;font-weight:500;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary);padding:6px 8px;text-align:left}
+.tbl td{padding:6px 8px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.badge{display:inline-block;font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px}
+.b-ok{background:#E2EFDA;color:#27500A}
+.b-warn{background:#FAEEDA;color:#633806}
+.b-risk{background:#FCEBEB;color:#791F1F}
+.mdots{display:flex;gap:3px;align-items:center}
+.mdot{width:9px;height:9px;border-radius:2px}
+.note-cell{font-size:11px;color:var(--color-text-secondary);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prog-wrap{display:flex;align-items:center;gap:6px}
+.prog-bar{flex:1;height:5px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;background:#4C42C8}
+.legend{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.leg-dot{width:10px;height:10px;border-radius:2px}
+</style>
+
+<div class="w">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-pill">AI<em>∞</em>Linker</div>
+      <div>
+        <div style="font-size:14px;font-weight:500">포트폴리오 진척도 현황</div>
+        <div class="brand-sub">2026 청소년 디지털 문제해결력 평가 — 기준일 2026.04.14</div>
+      </div>
+    </div>
+    <div class="filters">
+      <select id="sel-r" onchange="render()"><option value="">전체 지역</option></select>
+      <select id="sel-s" onchange="render()"><option value="">전체 학교</option></select>
+      <select id="sel-f" onchange="render()">
+        <option value="">전체 상태</option>
+        <option value="위험">위험</option>
+        <option value="주의">주의</option>
+        <option value="정상">정상</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="kpi-row" id="kpis"></div>
+
+  <div class="sec-grid">
+    <div class="card">
+      <div class="card-hd">지역별 평균 진척도</div>
+      <div id="region-bars"></div>
+    </div>
+    <div class="card">
+      <div class="card-hd">모듈 단계별 완료 현황 (70% 이상 팀 기준)</div>
+      <div id="funnel"></div>
+    </div>
+    <div class="card full">
+      <div class="card-hd">학교별 진척도 현황</div>
+      <div id="school-bars"></div>
+    </div>
+    <div class="card full">
+      <div class="card-hd">팀 상세 현황</div>
+      <div class="legend">
+        <div class="leg-item"><div class="leg-dot" style="background:#4C42C8"></div>70% 이상</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#EF9F27"></div>40–69%</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#E24B4A"></div>39% 이하</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <colgroup>
+            <col style="width:130px"><col style="width:72px"><col style="width:100px">
+            <col style="width:90px"><col style="width:70px">
+            <col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:32px">
+            <col style="width:60px"><col style="width:56px"><col style="width:200px">
+          </colgroup>
+          <thead><tr>
+            <th>팀 ID</th><th>지역</th><th>학교</th>
+            <th>팀명</th><th>전체 진척도</th>
+            <th>M1</th><th>M2</th><th>M3</th><th>M4</th><th>M5</th>
+            <th>최종수정</th><th>상태</th><th>교사 메모</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const D=[
+  ["T-서울-01-01","서울","서울 디지털중학교","AI 패트롤 1팀",95,88,72,60,42,0,"M3 디버그 로그 미작성 — 개별 면담 필요"],
+  ["T-서울-01-02","서울","서울 디지털중학교","해치 2팀",88,75,55,40,28,3,""],
+  ["T-서울-01-03","서울","서울 디지털중학교","에코봇 3팀",100,95,85,70,65,1,""],
+  ["T-서울-01-04","서울","서울 디지털중학교","세이프티 4팀",72,60,28,15,0,10,"7일 이상 미업데이트, 팀 연락 요망"],
+  ["T-부산-02-01","부산","부산 AI창의중학교","AI 패트롤 1팀",90,82,68,55,40,2,""],
+  ["T-부산-02-02","부산","부산 AI창의중학교","해치 2팀",85,70,50,35,20,8,"M3 진입 예정, 방향성 재확인 권장"],
+  ["T-부산-02-03","부산","부산 AI창의중학교","에코봇 3팀",95,90,80,65,55,1,""],
+  ["T-부산-02-04","부산","부산 AI창의중학교","세이프티 4팀",78,65,25,20,5,9,"7일 이상 미업데이트, 팀 연락 요망"],
+  ["T-대구-03-01","대구","대구 미래중학교","AI 패트롤 1팀",85,78,62,48,35,3,""],
+  ["T-대구-03-02","대구","대구 미래중학교","해치 2팀",92,88,75,60,45,2,""],
+  ["T-대구-03-03","대구","대구 미래중학교","에코봇 3팀",70,58,22,10,0,12,"M2 기능 우선순위표 미완성, 보완 지도 요청"],
+  ["T-대구-03-04","대구","대구 미래중학교","세이프티 4팀",88,80,65,50,38,4,"진도 다소 지연, 이번 주 체크인 예정"],
+  ["T-인천-04-01","인천","인천 스마트중학교","AI 패트롤 1팀",93,87,70,55,42,2,""],
+  ["T-인천-04-02","인천","인천 스마트중학교","해치 2팀",80,72,52,38,22,6,"센서 선정 단계에서 질문 많음, 추가 안내 예정"],
+  ["T-인천-04-03","인천","인천 스마트중학교","에코봇 3팀",97,92,82,68,58,1,""],
+  ["T-인천-04-04","인천","인천 스마트중학교","세이프티 4팀",75,62,20,18,2,11,"7일 이상 미업데이트, 팀 연락 요망"],
+  ["T-광주-05-01","광주","광주 소프트중학교","AI 패트롤 1팀",88,80,65,50,35,3,""],
+  ["T-광주-05-02","광주","광주 소프트중학교","해치 2팀",95,90,78,62,48,2,""],
+  ["T-광주-05-03","광주","광주 소프트중학교","에코봇 3팀",68,55,18,8,0,14,"팀 내 역할 분담 미정, 조율 지원 필요"],
+  ["T-광주-05-04","광주","광주 소프트중학교","세이프티 4팀",82,74,58,42,30,5,"진도 다소 지연, 이번 주 체크인 예정"],
+  ["T-대전-06-01","대전","대전 테크중학교","AI 패트롤 1팀",91,84,68,53,40,2,""],
+  ["T-대전-06-02","대전","대전 테크중학교","해치 2팀",83,75,55,40,25,7,"M3 진입 예정, 방향성 재확인 권장"],
+  ["T-대전-06-03","대전","대전 테크중학교","에코봇 3팀",96,91,81,67,57,1,""],
+  ["T-대전-06-04","대전","대전 테크중학교","세이프티 4팀",76,63,24,16,1,10,"7일 이상 미업데이트, 팀 연락 요망"],
+  ["T-울산-07-01","울산","울산 코딩중학교","AI 패트롤 1팀",86,78,62,47,33,4,"진도 다소 지연, 이번 주 체크인 예정"],
+  ["T-울산-07-02","울산","울산 코딩중학교","해치 2팀",90,85,72,57,42,2,""],
+  ["T-울산-07-03","울산","울산 코딩중학교","에코봇 3팀",72,60,23,12,0,13,"M2 기능 우선순위표 미완성, 보완 지도 요청"],
+  ["T-울산-07-04","울산","울산 코딩중학교","세이프티 4팀",84,76,60,45,32,5,""],
+  ["T-수원-08-01","수원","수원 데이터중학교","AI 패트롤 1팀",94,88,72,57,43,2,""],
+  ["T-수원-08-02","수원","수원 데이터중학교","해치 2팀",79,70,50,35,20,8,"센서 선정 단계에서 질문 많음, 추가 안내 예정"],
+  ["T-수원-08-03","수원","수원 데이터중학교","에코봇 3팀",98,94,84,70,62,1,""],
+  ["T-수원-08-04","수원","수원 데이터중학교","세이프티 4팀",74,61,21,14,1,12,"팀 내 역할 분담 미정, 조율 지원 필요"],
+  ["T-청주-09-01","청주","청주 로봇중학교","AI 패트롤 1팀",87,79,63,48,34,3,""],
+  ["T-청주-09-02","청주","청주 로봇중학교","해치 2팀",91,87,74,58,44,2,""],
+  ["T-청주-09-03","청주","청주 로봇중학교","에코봇 3팀",69,57,19,9,0,14,"팀 내 역할 분담 미정, 조율 지원 필요"],
+  ["T-청주-09-04","청주","청주 로봇중학교","세이프티 4팀",83,75,58,43,30,5,"진도 다소 지연, 이번 주 체크인 예정"],
+  ["T-전주-10-01","전주","전주 메이커중학교","AI 패트롤 1팀",89,82,66,51,37,3,""],
+  ["T-전주-10-02","전주","전주 메이커중학교","해치 2팀",92,88,75,60,46,2,""],
+  ["T-전주-10-03","전주","전주 메이커중학교","에코봇 3팀",71,59,21,11,0,13,"M2 기능 우선순위표 미완성, 보완 지도 요청"],
+  ["T-전주-10-04","전주","전주 메이커중학교","세이프티 4팀",85,77,61,46,33,5,""],
+];
+
+function prog(r){return Math.round((r[4]+r[5]+r[6]+r[7]+r[8])/5)}
+function flag(r){const d=r[9],m3=r[6];if(d>=7||m3<25)return"위험";if(d>=4||m3<50)return"주의";return"정상"}
+function dotColor(v){return v>=70?"#4C42C8":v>=40?"#EF9F27":"#E24B4A"}
+function dateStr(d){const dt=new Date(2026,3,14);dt.setDate(dt.getDate()-d);return`${dt.getMonth()+1}/${dt.getDate()}`}
+
+const regions=[...new Set(D.map(r=>r[1]))];
+const schools=[...new Set(D.map(r=>r[2]))];
+const rSel=document.getElementById('sel-r');
+const sSel=document.getElementById('sel-s');
+const fSel=document.getElementById('sel-f');
+regions.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;rSel.appendChild(o)});
+schools.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v.replace('중학교','').replace('학교','');sSel.appendChild(o)});
+
+const PUR='#4C42C8', PUR2='#6E66D8', PUR3='#918AE3';
+
+function render(){
+  const rv=rSel.value, sv=sSel.value, fv=fSel.value;
+  const data=D.filter(r=>(rv===''||r[1]===rv)&&(sv===''||r[2]===sv)&&(fv===''||flag(r)===fv));
+  const n=data.length;
+  if(!n){document.getElementById('kpis').innerHTML='<div style="color:var(--color-text-secondary);font-size:13px">해당 조건의 팀이 없습니다</div>';return}
+
+  const avgP=Math.round(data.reduce((a,r)=>a+prog(r),0)/n);
+  const risk=data.filter(r=>flag(r)==='위험').length;
+  const warn=data.filter(r=>flag(r)==='주의').length;
+  const ok=data.filter(r=>flag(r)==='정상').length;
+
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi"><div class="kpi-lbl">참여 팀</div><div class="kpi-val p">${n}팀</div></div>
+    <div class="kpi"><div class="kpi-lbl">평균 진척도</div><div class="kpi-val p">${avgP}%</div></div>
+    <div class="kpi"><div class="kpi-lbl">위험 / 주의</div><div class="kpi-val r">${risk} <span style="font-size:14px;color:var(--color-text-secondary)">/ ${warn}</span></div></div>
+    <div class="kpi"><div class="kpi-lbl">정상 진행</div><div class="kpi-val g">${ok}팀</div></div>`;
+
+  // region bars
+  const byR={};
+  data.forEach(r=>{if(!byR[r[1]])byR[r[1]]={s:0,c:0};byR[r[1]].s+=prog(r);byR[r[1]].c++});
+  const rAvgs=Object.entries(byR).map(([k,v])=>({k,v:Math.round(v.s/v.c)})).sort((a,b)=>b.v-a.v);
+  document.getElementById('region-bars').innerHTML=rAvgs.map(({k,v})=>`
+    <div class="bar-row">
+      <div class="bl">${k}</div>
+      <div class="bt"><div class="bf" style="width:${v}%;background:${PUR}"></div></div>
+      <div class="bv">${v}%</div>
+    </div>`).join('');
+
+  // funnel
+  const mLabels=['M1','M2','M3','M4','M5'];
+  const mIdx=[4,5,6,7,8];
+  const fColors=[PUR,PUR,'#6059BF','#7870C8','#918AE3'];
+  document.getElementById('funnel').innerHTML=mLabels.map((lbl,i)=>{
+    const cnt=data.filter(r=>r[mIdx[i]]>=70).length;
+    const pct=Math.round(cnt/n*100);
+    return`<div class="fn-row">
+      <div class="fn-lbl">${lbl}</div>
+      <div class="fn-t"><div class="fn-f" style="width:${Math.max(pct,8)}%;background:${fColors[i]}">${cnt}팀</div></div>
+      <div class="fn-n">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  // school bars — grouped with region label
+  const byS={};
+  data.forEach(r=>{if(!byS[r[2]])byS[r[2]]={s:0,c:0,region:r[1]};byS[r[2]].s+=prog(r);byS[r[2]].c++});
+  const sAvgs=Object.entries(byS).map(([k,v])=>({k,v:Math.round(v.s/v.c),region:v.region})).sort((a,b)=>b.v-a.v);
+  document.getElementById('school-bars').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px">
+    ${sAvgs.map(({k,v,region})=>`
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:12px;font-weight:500">${k.replace('중학교','').replace('학교','')}</span>
+          <span style="font-size:10px;color:var(--color-text-secondary)">${region}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:10px;background:var(--color-background-secondary);border-radius:5px;overflow:hidden">
+            <div style="width:${v}%;height:100%;border-radius:5px;background:${v>=70?PUR:v>=50?PUR3:'#B5B2A9'}"></div>
+          </div>
+          <span style="font-size:12px;font-weight:500;min-width:30px;text-align:right;color:${v>=70?PUR:v>=50?'#534AB7':'var(--color-text-secondary)'}">${v}%</span>
+        </div>
+      </div>`).join('')}
+    </div>`;
+
+  // team table
+  document.getElementById('tbody').innerHTML=data.map(r=>{
+    const p=prog(r);
+    const fl=flag(r);
+    const bc=fl==='위험'?'b-risk':fl==='주의'?'b-warn':'b-ok';
+    const dots=[4,5,6,7,8].map(i=>`<div class="mdot" style="background:${dotColor(r[i])}" title="M${i-3}: ${r[i]}%"></div>`).join('');
+    return`<tr>
+      <td style="font-size:11px;color:var(--color-text-secondary)">${r[0]}</td>
+      <td style="font-size:12px">${r[1]}</td>
+      <td style="font-size:12px">${r[2].replace('중학교','')}</td>
+      <td style="font-weight:500;font-size:12px">${r[3]}</td>
+      <td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${p}%"></div></div><span style="font-size:11px;min-width:28px">${p}%</span></div></td>
+      <td colspan="0" style="padding:0"><div class="mdots" style="padding:6px 8px">${dots}</div></td>
+      <td></td><td></td><td></td><td></td>
+      <td style="font-size:11px;color:var(--color-text-secondary)">${dateStr(r[9])}</td>
+      <td><span class="badge ${bc}">${fl}</span></td>
+      <td class="note-cell" title="${r[10]}">${r[10]||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  // fix dot colspan — rebuild properly
+  document.getElementById('tbody').innerHTML=data.map(r=>{
+    const p=prog(r);
+    const fl=flag(r);
+    const bc=fl==='위험'?'b-risk':fl==='주의'?'b-warn':'b-ok';
+    const mCols=[4,5,6,7,8].map((mi,i)=>`<td style="text-align:center"><div class="mdot" style="background:${dotColor(r[mi])};margin:auto" title="M${i+1}: ${r[mi]}%"></div></td>`).join('');
+    return`<tr>
+      <td style="font-size:11px;color:var(--color-text-secondary)">${r[0]}</td>
+      <td style="font-size:12px">${r[1]}</td>
+      <td style="font-size:12px">${r[2].replace('중학교','')}</td>
+      <td style="font-weight:500;font-size:12px">${r[3]}</td>
+      <td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${p}%"></div></div><span style="font-size:11px;min-width:28px">${p}%</span></div></td>
+      ${mCols}
+      <td style="font-size:11px;color:var(--color-text-secondary)">${dateStr(r[9])}</td>
+      <td><span class="badge ${bc}">${fl}</span></td>
+      <td class="note-cell" title="${r[10]}">${r[10]||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+render();
+</script>

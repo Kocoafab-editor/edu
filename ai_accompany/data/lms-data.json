@@ -1,0 +1,189 @@
+{
+  "users": [
+    { "id": "admin01", "password": "admin01", "role": "admin", "displayName": "운영 관리자" },
+    {
+      "id": "teacher01",
+      "password": "teacher01",
+      "role": "instructor",
+      "displayName": "박소연 강사",
+      "schoolId": "school-middle",
+      "clubId": "club-middle-a",
+      "teamIds": ["team-middle-a"]
+    },
+    {
+      "id": "student01",
+      "password": "student01",
+      "role": "student",
+      "displayName": "김하늘",
+      "studentId": "student-1",
+      "teamId": "team-middle-a"
+    }
+  ],
+  "catalog": {
+    "regions": ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"],
+    "schoolLevels": [
+      { "id": "middle", "label": "중학교" },
+      { "id": "high", "label": "고등학교" }
+    ],
+    "modules": [
+      { "id": "module-1", "title": "모듈 1", "lessonIds": ["lesson-1", "lesson-2", "lesson-3"] },
+      { "id": "module-2", "title": "모듈 2", "lessonIds": ["lesson-4", "lesson-5", "lesson-6"] },
+      { "id": "module-3", "title": "모듈 3", "lessonIds": ["lesson-7", "lesson-8", "lesson-9"] },
+      { "id": "module-4", "title": "모듈 4", "lessonIds": ["lesson-10", "lesson-11", "lesson-12"] }
+    ],
+    "lessons": [
+      { "id": "lesson-1", "moduleId": "module-1", "order": 1, "title": "1차시", "topic": "1차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-1" },
+      { "id": "lesson-2", "moduleId": "module-1", "order": 2, "title": "2차시", "topic": "2차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-2" },
+      { "id": "lesson-3", "moduleId": "module-1", "order": 3, "title": "3차시", "topic": "3차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-3" },
+      { "id": "lesson-4", "moduleId": "module-2", "order": 4, "title": "4차시", "topic": "4차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-4" },
+      { "id": "lesson-5", "moduleId": "module-2", "order": 5, "title": "5차시", "topic": "5차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-5" },
+      { "id": "lesson-6", "moduleId": "module-2", "order": 6, "title": "6차시", "topic": "6차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-6" },
+      { "id": "lesson-7", "moduleId": "module-3", "order": 7, "title": "7차시", "topic": "7차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-7" },
+      { "id": "lesson-8", "moduleId": "module-3", "order": 8, "title": "8차시", "topic": "8차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-8" },
+      { "id": "lesson-9", "moduleId": "module-3", "order": 9, "title": "9차시", "topic": "9차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-9" },
+      { "id": "lesson-10", "moduleId": "module-4", "order": 10, "title": "10차시", "topic": "10차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-10" },
+      { "id": "lesson-11", "moduleId": "module-4", "order": 11, "title": "11차시", "topic": "11차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-11" },
+      { "id": "lesson-12", "moduleId": "module-4", "order": 12, "title": "12차시", "topic": "12차시 내용입니다.", "driveUrl": "https://drive.google.com/drive/folders/demo-lesson-12" }
+    ]
+  },
+  "organizations": {
+    "schools": [
+      { "id": "school-middle", "name": "서울 디지털중학교", "region": "서울", "schoolLevel": "middle", "clubIds": ["club-middle-a", "club-middle-b"] },
+      { "id": "school-high", "name": "부산 AI고등학교", "region": "부산", "schoolLevel": "high", "clubIds": ["club-high-a"] }
+    ],
+    "clubs": [
+      { "id": "club-middle-a", "schoolId": "school-middle", "name": "AI 메이커 동아리", "teamIds": ["team-middle-a"] },
+      { "id": "club-middle-b", "schoolId": "school-middle", "name": "AI 탐구 동아리", "teamIds": ["team-middle-b"] },
+      { "id": "club-high-a", "schoolId": "school-high", "name": "AI 창업 동아리", "teamIds": ["team-high-a"] }
+    ],
+    "teams": [
+      { "id": "team-middle-a", "schoolId": "school-middle", "clubId": "club-middle-a", "name": "미래 설계 1팀", "theme": "스마트 안전 시스템", "studentIds": ["student-1", "student-2", "student-3", "student-4"] },
+      { "id": "team-middle-b", "schoolId": "school-middle", "clubId": "club-middle-b", "name": "미래 설계 2팀", "theme": "AI 돌봄 도우미", "studentIds": ["student-5", "student-6"] },
+      { "id": "team-high-a", "schoolId": "school-high", "clubId": "club-high-a", "name": "비전 랩 팀", "theme": "AI 데이터 분석", "studentIds": ["student-7", "student-8"] }
+    ],
+    "students": [
+      { "id": "student-1", "teamId": "team-middle-a", "name": "김하늘", "gradeLabel": "중2", "number": 1 },
+      { "id": "student-2", "teamId": "team-middle-a", "name": "이준", "gradeLabel": "중2", "number": 2 },
+      { "id": "student-3", "teamId": "team-middle-a", "name": "박시우", "gradeLabel": "중2", "number": 3 },
+      { "id": "student-4", "teamId": "team-middle-a", "name": "한서윤", "gradeLabel": "중2", "number": 4 },
+      { "id": "student-5", "teamId": "team-middle-b", "name": "최민서", "gradeLabel": "중3", "number": 5 },
+      { "id": "student-6", "teamId": "team-middle-b", "name": "정예린", "gradeLabel": "중3", "number": 6 },
+      { "id": "student-7", "teamId": "team-high-a", "name": "강도윤", "gradeLabel": "고1", "number": 1 },
+      { "id": "student-8", "teamId": "team-high-a", "name": "윤채아", "gradeLabel": "고1", "number": 2 }
+    ]
+  },
+  "progress": [
+    { "studentId": "student-1", "lessonProgress": [
+      { "lessonId": "lesson-1", "status": "completed", "feedback": "기초 이해가 안정적입니다." },
+      { "lessonId": "lesson-2", "status": "completed", "feedback": "정리 문서가 깔끔합니다." },
+      { "lessonId": "lesson-3", "status": "submitted", "feedback": "발표 자료 보완이 필요합니다." },
+      { "lessonId": "lesson-4", "status": "submitted", "feedback": "팀 과제 제출 완료" },
+      { "lessonId": "lesson-5", "status": "in-progress", "feedback": "실습 중입니다." },
+      { "lessonId": "lesson-6", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-7", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-8", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-9", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-10", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-11", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-12", "status": "not-started", "feedback": "" }
+    ]},
+    { "studentId": "student-2", "lessonProgress": [
+      { "lessonId": "lesson-1", "status": "completed", "feedback": "참여도가 좋습니다." },
+      { "lessonId": "lesson-2", "status": "submitted", "feedback": "코드 설명이 조금 더 필요합니다." },
+      { "lessonId": "lesson-3", "status": "submitted", "feedback": "제출 완료" },
+      { "lessonId": "lesson-4", "status": "in-progress", "feedback": "실습 진행 중" },
+      { "lessonId": "lesson-5", "status": "in-progress", "feedback": "실습 진행 중" },
+      { "lessonId": "lesson-6", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-7", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-8", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-9", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-10", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-11", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-12", "status": "not-started", "feedback": "" }
+    ]},
+    { "studentId": "student-3", "lessonProgress": [
+      { "lessonId": "lesson-1", "status": "submitted", "feedback": "제출은 완료했습니다." },
+      { "lessonId": "lesson-2", "status": "submitted", "feedback": "피드백 대기" },
+      { "lessonId": "lesson-3", "status": "in-progress", "feedback": "개선 작업 중" },
+      { "lessonId": "lesson-4", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-5", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-6", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-7", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-8", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-9", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-10", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-11", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-12", "status": "not-started", "feedback": "" }
+    ]},
+    { "studentId": "student-4", "lessonProgress": [
+      { "lessonId": "lesson-1", "status": "completed", "feedback": "기획서가 좋습니다." },
+      { "lessonId": "lesson-2", "status": "completed", "feedback": "협업이 안정적입니다." },
+      { "lessonId": "lesson-3", "status": "completed", "feedback": "완료" },
+      { "lessonId": "lesson-4", "status": "submitted", "feedback": "제출 확인" },
+      { "lessonId": "lesson-5", "status": "submitted", "feedback": "검토 예정" },
+      { "lessonId": "lesson-6", "status": "in-progress", "feedback": "후속 보완 중" },
+      { "lessonId": "lesson-7", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-8", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-9", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-10", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-11", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-12", "status": "not-started", "feedback": "" }
+    ]},
+    { "studentId": "student-5", "lessonProgress": [
+      { "lessonId": "lesson-1", "status": "submitted", "feedback": "첫 제출 완료" },
+      { "lessonId": "lesson-2", "status": "in-progress", "feedback": "피드백 반영 중" },
+      { "lessonId": "lesson-3", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-4", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-5", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-6", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-7", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-8", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-9", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-10", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-11", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-12", "status": "not-started", "feedback": "" }
+    ]},
+    { "studentId": "student-6", "lessonProgress": [
+      { "lessonId": "lesson-1", "status": "submitted", "feedback": "제출 완료" },
+      { "lessonId": "lesson-2", "status": "submitted", "feedback": "기초 수행 완료" },
+      { "lessonId": "lesson-3", "status": "submitted", "feedback": "피드백 대기" },
+      { "lessonId": "lesson-4", "status": "in-progress", "feedback": "문서 정리 중" },
+      { "lessonId": "lesson-5", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-6", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-7", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-8", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-9", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-10", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-11", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-12", "status": "not-started", "feedback": "" }
+    ]},
+    { "studentId": "student-7", "lessonProgress": [
+      { "lessonId": "lesson-1", "status": "completed", "feedback": "수행이 매우 좋습니다." },
+      { "lessonId": "lesson-2", "status": "completed", "feedback": "발표가 명확합니다." },
+      { "lessonId": "lesson-3", "status": "completed", "feedback": "완료" },
+      { "lessonId": "lesson-4", "status": "completed", "feedback": "완료" },
+      { "lessonId": "lesson-5", "status": "submitted", "feedback": "추가 데이터 정리 필요" },
+      { "lessonId": "lesson-6", "status": "submitted", "feedback": "검토 중" },
+      { "lessonId": "lesson-7", "status": "in-progress", "feedback": "발표 준비 중" },
+      { "lessonId": "lesson-8", "status": "in-progress", "feedback": "분석 정리 중" },
+      { "lessonId": "lesson-9", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-10", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-11", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-12", "status": "not-started", "feedback": "" }
+    ]},
+    { "studentId": "student-8", "lessonProgress": [
+      { "lessonId": "lesson-1", "status": "completed", "feedback": "기초 실습 우수" },
+      { "lessonId": "lesson-2", "status": "completed", "feedback": "피드백 반영 완료" },
+      { "lessonId": "lesson-3", "status": "submitted", "feedback": "검토 예정" },
+      { "lessonId": "lesson-4", "status": "submitted", "feedback": "제출 완료" },
+      { "lessonId": "lesson-5", "status": "submitted", "feedback": "문서 정리 필요" },
+      { "lessonId": "lesson-6", "status": "submitted", "feedback": "후속 검토 예정" },
+      { "lessonId": "lesson-7", "status": "in-progress", "feedback": "발표 초안 작성 중" },
+      { "lessonId": "lesson-8", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-9", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-10", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-11", "status": "not-started", "feedback": "" },
+      { "lessonId": "lesson-12", "status": "not-started", "feedback": "" }
+    ]}
+  ]
+}

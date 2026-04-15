@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 동행 LMS</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body class="app-shell" data-page="login" data-app-root=".">
+  <main id="pageRoot">
+    <section class="page-stack">
+      <section class="login-shell">
+        <h1 class="login-service-title">AI 동행 피지컬AI<br>LMS</h1>
+        <form id="loginForm" class="field-grid login-form">
+          <label class="field-label">
+            아이디
+            <input id="userIdInput" class="field-control" name="userId" autocomplete="username" placeholder="아이디를 입력하세요">
+          </label>
+          <label class="field-label">
+            비밀번호
+            <input id="passwordInput" class="field-control" type="password" name="password" autocomplete="current-password" placeholder="비밀번호를 입력하세요">
+          </label>
+          <button class="primary-button" type="submit">로그인</button>
+        </form>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
